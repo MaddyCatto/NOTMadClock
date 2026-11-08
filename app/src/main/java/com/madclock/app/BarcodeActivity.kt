@@ -117,12 +117,12 @@ class BarcodeActivity : ComponentActivity() {
             val active = AlarmStore(this).activeAlarm
             if (active != null && value == active.barcode) {
                 status.text = "Код совпал. Будильник выключается."
-                startService(Intent(this, AlarmService::class.java).apply {
-                    action = AlarmService.ACTION_STOP
-                    putExtra(AlarmService.EXTRA_BARCODE, value)
-                    putExtra(AlarmService.EXTRA_SESSION, active.id)
-                })
-                handler.postDelayed({ finish() }, 350L)
+                if (SignalController.stopAfterScan(this, active.id, value)) {
+                    handler.postDelayed({ finish() }, 350L)
+                } else {
+                    status.text = "Не удалось завершить сохранённый сигнал. Повтори сканирование."
+                    locked.set(false)
+                }
             } else {
                 status.text = "Это не зарегистрированный штрихкод. Попробуй другой."
                 handler.postDelayed({ locked.set(false) }, 1400L)
@@ -140,8 +140,7 @@ class BarcodeActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Android may restore the scanner directly after killing the old process.
-        AlarmStore(this).activeAlarm?.let { AlarmService.resume(this, it.id) }
+        SignalController.onVisibleLaunch(this)
     }
 
     companion object {
