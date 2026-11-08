@@ -169,21 +169,23 @@ class MainActivity : ComponentActivity() {
 
     private fun refresh() {
         if (!::store.isInitialized || !::status.isInitialized) return
+        val active = store.activeAlarm != null
         val ringing = AlarmService.isRinging
-        findViewById<LinearLayout>(R.id.configPanel).visibility = if (ringing) View.GONE else View.VISIBLE
-        findViewById<LinearLayout>(R.id.activePanel).visibility = if (ringing) View.VISIBLE else View.GONE
+        findViewById<LinearLayout>(R.id.configPanel).visibility = if (active) View.GONE else View.VISIBLE
+        findViewById<LinearLayout>(R.id.activePanel).visibility = if (active) View.VISIBLE else View.GONE
         status.text = when {
             ringing -> "БУДИЛЬНИК ЗВУЧИТ. Выключение — только сканированием."
+            active -> "Активный будильник сохранён. Восстановление звука — при открытии приложения."
             store.enabled -> "Включён ежедневно: %02d:%02d".format(store.hour, store.minute)
             else -> "Будильник выключен"
         }
-        if (!ringing) {
+        if (!active) {
             findViewById<TextView>(R.id.songValue).text = store.songName ?: "Песня не выбрана"
             findViewById<TextView>(R.id.barcodeValue).text =
                 if (store.barcode.isNullOrBlank()) "Штрихкод не зарегистрирован" else "Штрихкод зарегистрирован"
             findViewById<TextView>(R.id.volumeValue).text = "${volume.progress.coerceAtLeast(1)}%"
         }
-        if (ringing && Build.VERSION.SDK_INT >= 27) {
+        if (active && Build.VERSION.SDK_INT >= 27) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         }
@@ -208,6 +210,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Visible launch is a permitted FGS start; do not fire/schedule the daily alarm again.
+        store.activeAlarm?.let { AlarmService.resume(this, it.id) }
         mainHandler.removeCallbacks(refreshTask)
         mainHandler.post(refreshTask)
     }

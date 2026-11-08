@@ -32,6 +32,8 @@ class AlarmService : Service() {
     private var originalVolume: Int? = null
     private var fallbackActive = false
     private var finished = false
+    private var session: ActiveAlarm? = null
+    private var stoppedByScan = false
 
     private val alarmAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -41,11 +43,11 @@ class AlarmService : Service() {
     private val enforceVolume = object : Runnable {
         override fun run() {
             if (!isRinging || finished) return
-            val store = AlarmStore(this@AlarmService)
+            val active = session ?: return
             try {
                 if (!audioManager.isVolumeFixed) {
                     val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-                    val target = (maximum * store.volumePercent / 100.0)
+                    val target = (maximum * active.volumePercent / 100.0)
                         .roundToInt().coerceIn(1, maximum)
                     val actual = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
                     if (actual < target) {
@@ -70,29 +72,45 @@ class AlarmService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> {
-                val scannedValue = intent.getStringExtra(EXTRA_BARCODE)
-                val expected = AlarmStore(this).barcode
-                if (!expected.isNullOrEmpty() && scannedValue == expected) {
-                    stopSelf()
-                }
-                return START_NOT_STICKY
-            }
-            ACTION_START -> {
-                if (isRinging) return START_NOT_STICKY
-                startRinging()
-                return START_NOT_STICKY
-            }
-            else -> {
+        val store = AlarmStore(this)
+        val active = store.activeAlarm
+        Log.i("MadClock", "Service command ${intent?.action ?: "sticky restart"}; active=${active != null}")
+        if (intent?.action == ACTION_STOP) {
+            if (active != null && intent.getStringExtra(EXTRA_SESSION) == active.id &&
+                store.finishAlarm(active.id, intent.getStringExtra(EXTRA_BARCODE))) {
+                // Persist completion before cancelling the ticket or releasing resources.
+                stoppedByScan = true
+                originalVolume = active.originalVolume
+                runCatching { AlarmScheduler.cancelRecovery(this) }
+                    .onFailure { Log.w("MadClock", "Cannot cancel continuation; saved session is cleared", it) }
+                handler.removeCallbacksAndMessages(null)
+                isRinging = false
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
+            if (!isRinging) stopSelf(startId)
+            return if (isRinging) START_STICKY else START_NOT_STICKY
         }
+        // Null is the framework's sticky restart. Explicit starts must match the saved session;
+        // a late recovery command must never recreate an alarm already completed by a scan.
+        val allowed = intent == null ||
+            (intent.action == ACTION_START && intent.getStringExtra(EXTRA_SESSION) == active?.id)
+        if (active == null) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (!allowed) {
+            if (!isRinging) stopSelf(startId)
+            return if (isRinging) START_STICKY else START_NOT_STICKY
+        }
+        if (!isRinging) startRinging(active)
+        return START_STICKY
     }
 
     @SuppressLint("WakelockTimeout")
-    private fun startRinging() {
+    private fun startRinging(active: ActiveAlarm) {
+        session = active
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -104,13 +122,13 @@ class AlarmService : Service() {
                 startForeground(NOTIFICATION_ID, notification())
             }
             isRinging = true
-            originalVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            originalVolume = active.originalVolume
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MadClock:AlarmPlayback")
                 .apply { acquire() }
             requestAudioFocus()
             enforceVolume.run()
-            val selected = AlarmStore(this).getSongUri()
+            val selected = active.songUri?.let(Uri::parse)
             if (selected != null) {
                 playUri(selected)
             } else {
@@ -120,6 +138,16 @@ class AlarmService : Service() {
             Log.e("MadClock", "Cannot start alarm", error)
             stopSelf()
         }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.i("MadClock", "Task removed; ringing=$isRinging")
+        // stopWithTask=false leaves this FGS playing. Some OEMs kill it anyway; this bounded
+        // exact-alarm continuation may help only if the OS delivers this callback and alarm.
+        AlarmStore(this).activeAlarm?.let {
+            AlarmScheduler.recoverAfterTaskRemoval(this, it.id)
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun requestAudioFocus() {
@@ -197,16 +225,18 @@ class AlarmService : Service() {
     }
 
     override fun onDestroy() {
+        Log.i("MadClock", "Service destroyed; completedByScan=$stoppedByScan")
         finished = true
         isRinging = false
-        handler.removeCallbacks(enforceVolume)
+        handler.removeCallbacksAndMessages(null)
         runCatching { player?.stop() }
         runCatching { player?.release() }
         player = null
         focusRequest?.let { runCatching { audioManager.abandonAudioFocusRequest(it) } }
         wakeLock?.let { if (it.isHeld) it.release() }
-        // Restore the previous system alarm volume after a normal stop.
-        originalVolume?.let { before ->
+        // A destroyed service is not a completed alarm. Retain the durable session and volume
+        // baseline across process death; only a verified scan restores system volume.
+        originalVolume?.takeIf { stoppedByScan }?.let { before ->
             runCatching { audioManager.setStreamVolume(AudioManager.STREAM_ALARM, before, 0) }
         }
         super.onDestroy()
@@ -216,9 +246,23 @@ class AlarmService : Service() {
         const val ACTION_START = "com.madclock.app.START"
         const val ACTION_STOP = "com.madclock.app.STOP_AFTER_SCAN"
         const val EXTRA_BARCODE = "barcode"
+        const val EXTRA_SESSION = "session"
         private const val CHANNEL_ID = "madclock_alarm_v1"
         private const val NOTIFICATION_ID = 711
         @Volatile var isRinging: Boolean = false
             private set
+
+        /** Only call from a visible Activity, an exact-alarm receiver, or let Android restart us. */
+        fun resume(context: Context, sessionId: String): Boolean = try {
+            context.startForegroundService(
+                Intent(context, AlarmService::class.java).setAction(ACTION_START)
+                    .putExtra(EXTRA_SESSION, sessionId)
+            )
+            true
+        } catch (error: RuntimeException) {
+            // A rejected start leaves state intact for the next user-visible launch. No retry loop.
+            Log.w("MadClock", "Alarm resume rejected; open the app to retry", error)
+            false
+        }
     }
 }

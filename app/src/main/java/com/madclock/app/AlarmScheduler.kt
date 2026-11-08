@@ -5,11 +5,40 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import java.util.Calendar
 
 object AlarmScheduler {
     private const val DAILY_ID = 1101
     private const val TEST_ID = 1102
+    private const val RECOVERY_ID = 1105
+
+    private fun recoveryIntent(context: Context, id: String? = null): PendingIntent =
+        PendingIntent.getBroadcast(
+            context, RECOVERY_ID,
+            Intent(context, AlarmReceiver::class.java).setAction(AlarmReceiver.ACTION_RECOVER)
+                .putExtra(AlarmService.EXTRA_SESSION, id),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+    /** One continuation of an already ringing, user-requested alarm, never a repeating watchdog. */
+    fun recoverAfterTaskRemoval(context: Context, id: String) {
+        if (!hasExactAlarmAccess(context) || !AlarmStore(context).claimRecovery(id)) return
+        try {
+            alarmManager(context).setExactAndAllowWhileIdle(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 5_000L,
+                recoveryIntent(context, id)
+            )
+        } catch (error: RuntimeException) {
+            // Keep the attempt consumed even on failure: do not create a restart loop.
+            Log.w("MadClock", "Task-removal continuation unavailable", error)
+        }
+    }
+
+    fun cancelRecovery(context: Context) {
+        alarmManager(context).cancel(recoveryIntent(context))
+    }
 
     private fun alarmManager(context: Context): AlarmManager =
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
