@@ -1,68 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
-    <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:padding="24dp" android:orientation="vertical">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="MadClock" android:textSize="36sp" android:textStyle="bold"
-            android:textColor="#171B24" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Будильник, который выключается штрихкодом" android:textSize="15sp"
-            android:layout_marginBottom="16dp" android:textColor="#555E70" />
-        <TextView android:id="@+id/status" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:padding="12dp"
-            android:background="#E7EBF1" android:textColor="#171B24" android:textSize="16sp" />
-
-        <LinearLayout android:id="@+id/configPanel" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:text="ВРЕМЯ БУДИЛЬНИКА" android:textStyle="bold" android:textColor="#555E70"
-                android:layout_marginTop="20dp" />
-            <TimePicker android:id="@+id/timePicker" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:timePickerMode="spinner" />
-            <Button android:id="@+id/selectSong" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Выбрать песню (локальный файл)" />
-            <TextView android:id="@+id/songValue" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:padding="8dp"
-                android:textColor="#555E70" />
-            <Button android:id="@+id/selectBarcode" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Зарегистрировать штрихкод" />
-            <TextView android:id="@+id/barcodeValue" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:padding="8dp"
-                android:textColor="#555E70" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:text="ГРОМКОСТЬ БУДИЛЬНИКА" android:textStyle="bold"
-                android:textColor="#555E70" android:layout_marginTop="10dp" />
-            <SeekBar android:id="@+id/volume" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:max="100" />
-            <TextView android:id="@+id/volumeValue" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:textColor="#555E70" />
-            <Button android:id="@+id/saveAlarm" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Сохранить и включить ежедневно" />
-            <Button android:id="@+id/disableAlarm" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Отключить будущие будильники" />
-            <Button android:id="@+id/testAlarm" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Тест: сработает через 1 минуту" />
-            <Button android:id="@+id/notificationSettings" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Разрешить уведомления" />
-            <Button android:id="@+id/fullscreenSettings" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Настроить полноэкранный будильник" />
-            <Button android:id="@+id/batterySettings" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:text="Проверить фоновые ограничения OxygenOS" />
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="14dp" android:textColor="#555E70"
-                android:text="Звук повторяется до сканирования кода. Кнопки на экране не выключают активный сигнал. Экстренная остановка: системные настройки → приложения → MadClock → Остановить принудительно." />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/activePanel" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="32dp" android:textSize="22sp" android:textStyle="bold"
-                android:textColor="#171B24" android:text="Чтобы выключить звук, отсканируй зарегистрированный штрихкод." />
-            <Button android:id="@+id/stopWithBarcode" android:layout_width="match_parent"
-                android:layout_height="wrap_content" android:layout_marginTop="24dp"
-                android:text="СКАНИРОВАТЬ ШТРИХКОД" />
-        </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/appRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background">
+ <com.madclock.app.ContentFrame android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center_horizontal">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:paddingLeft="@dimen/page_margin" android:paddingRight="@dimen/page_margin">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:gravity="center_vertical" android:orientation="horizontal">
+    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/app_name" android:textSize="24sp" android:fontFamily="sans-serif-medium" android:textColor="@color/text_primary"/>
+    <ImageButton android:id="@+id/moreMenu" android:layout_width="48dp" android:layout_height="48dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_more" android:contentDescription="@string/menu"/>
+   </LinearLayout>
+   <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/my_alarms" android:textColor="@color/text_secondary" android:textSize="14sp" android:paddingBottom="14dp"/>
+   <LinearLayout android:id="@+id/activeBanner" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/card_background" android:padding="16dp" android:layout_marginBottom="12dp" android:visibility="gone">
+    <TextView android:id="@+id/activeText" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="16sp"/>
+    <Button android:id="@+id/scanActive" style="@style/PrimaryButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:text="@string/scan_stop"/>
+   </LinearLayout>
+   <ScrollView android:id="@+id/alarmScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false" android:paddingBottom="100dp" android:scrollbars="none">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+     <LinearLayout android:id="@+id/alarmList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+     <LinearLayout android:id="@+id/emptyState" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="vertical" android:paddingTop="56dp" android:paddingBottom="32dp" android:visibility="gone">
+      <ImageView android:layout_width="56dp" android:layout_height="56dp" android:src="@drawable/ic_alarm_empty" android:contentDescription="@null"/>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="20dp" android:text="@string/empty_title" android:textColor="@color/text_primary" android:textSize="20sp"/>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="8dp" android:text="@string/empty_subtitle" android:textColor="@color/text_secondary" android:textSize="14sp"/>
+      <Button android:id="@+id/addEmpty" style="@style/SecondaryButton" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="24dp" android:text="@string/add_alarm"/>
+     </LinearLayout>
+    </FrameLayout>
+   </ScrollView>
+  </LinearLayout>
+  <ImageButton android:id="@+id/addAlarm" android:layout_width="56dp" android:layout_height="56dp" android:layout_gravity="bottom|end" android:layout_marginEnd="24dp" android:layout_marginBottom="24dp" android:background="@drawable/fab_background" android:src="@drawable/ic_add" android:contentDescription="@string/add_alarm" android:stateListAnimator="@null"/>
+ </com.madclock.app.ContentFrame>
+</FrameLayout>

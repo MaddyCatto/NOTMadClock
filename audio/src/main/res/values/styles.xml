@@ -1,0 +1,1 @@
+<resources><style name="AudioSetupTheme" parent="android:style/Theme.Material.Dialog.NoActionBar"><item name="android:colorAccent">#7446EA</item><item name="android:windowBackground">#0D0A14</item><item name="android:colorBackgroundFloating">#211731</item><item name="android:textColorPrimary">#F3EEFF</item><item name="android:textColorSecondary">#B7AFCB</item></style></resources>

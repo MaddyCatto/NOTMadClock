@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Bundled barcode recognition is offline; do not inherit DataTransport networking. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
 
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="com.madclock.audio.permission.CONTROL_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <queries><package android:name="com.madclock.audio" /></queries>
 
     <application
         android:allowBackup="false"
@@ -35,8 +38,9 @@
 
         <activity
             android:name=".BarcodeActivity"
-            android:exported="false"
-            android:screenOrientation="unspecified" />
+            android:exported="false" />
+        <activity android:name=".AlarmEditorActivity" android:exported="false" />
+        <activity android:name=".PermissionsActivity" android:exported="false" />
 
         <receiver android:name=".AlarmReceiver" android:exported="false" />
 
@@ -52,10 +56,5 @@
             </intent-filter>
         </receiver>
 
-        <service
-            android:name=".AlarmService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback"
-            android:stopWithTask="false" />
     </application>
 </manifest>
