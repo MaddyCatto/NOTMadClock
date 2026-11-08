@@ -21,7 +21,8 @@ object AlarmScheduler {
                 .putExtra("session", a.id).putExtra("kind", a.kind.name).putExtra("slot", slot),
             flags or PendingIntent.FLAG_IMMUTABLE)
     private fun show(c: Context) = PendingIntent.getActivity(c, 1103,
-        Intent(c, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
     fun scheduleNext(c: Context): Boolean {
         val store = AlarmStore(c)

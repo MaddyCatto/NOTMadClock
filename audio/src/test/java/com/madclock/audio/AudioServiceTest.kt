@@ -81,6 +81,9 @@ class AudioServiceTest {
         assertTrue(initial.isPlaying)
         assertTrue(initial.isLooping)
         assertNotNull(shadowOf(service).lastForegroundNotification)
+        val openMain = shadowOf(shadowOf(service).lastForegroundNotification.contentIntent).savedIntent
+        assertEquals("com.madclock.app", openMain.component!!.packageName)
+        assertTrue(openMain.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         repeat(5) { service.onStartCommand(command(C.START), 0, it + 2) }
         assertSame(initial, player(service))
         assertEquals("com.madclock.audio", context.packageName)

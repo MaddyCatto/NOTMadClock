@@ -32,7 +32,8 @@ object NotificationSignals {
             Log.w("MadClock", "Mode A slot=$slot blocked: notifications/channel sound disabled")
             return
         }
-        val show = PendingIntent.getActivity(context, 1104, Intent(context, MainActivity::class.java),
+        val show = PendingIntent.getActivity(context, 1104, Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         manager.notify(ID,
             Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_alarm)

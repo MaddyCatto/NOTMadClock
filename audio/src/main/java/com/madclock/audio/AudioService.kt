@@ -179,7 +179,8 @@ class AudioService : Service() {
     }
     private fun promote() {
         val show = PendingIntent.getActivity(this, 7,
-            Intent().setComponent(android.content.ComponentName("com.madclock.app", "com.madclock.app.MainActivity")),
+            Intent().setComponent(android.content.ComponentName("com.madclock.app", "com.madclock.app.MainActivity"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_alarm)
             .setContentTitle("MadClock Audio").setContentText("Остановка — штрихкодом в MadClock")
