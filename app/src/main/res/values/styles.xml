@@ -1,0 +1,11 @@
+<resources>
+    <style name="MadClockTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#D84635</item>
+        <item name="android:statusBarColor">#171B24</item>
+        <item name="android:navigationBarColor">#171B24</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">#F7F8FA</item>
+    </style>
+</resources>

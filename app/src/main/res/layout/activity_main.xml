@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="24dp" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="MadClock" android:textSize="36sp" android:textStyle="bold"
+            android:textColor="#171B24" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Будильник, который выключается штрихкодом" android:textSize="15sp"
+            android:layout_marginBottom="16dp" android:textColor="#555E70" />
+        <TextView android:id="@+id/status" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:padding="12dp"
+            android:background="#E7EBF1" android:textColor="#171B24" android:textSize="16sp" />
+
+        <LinearLayout android:id="@+id/configPanel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="ВРЕМЯ БУДИЛЬНИКА" android:textStyle="bold" android:textColor="#555E70"
+                android:layout_marginTop="20dp" />
+            <TimePicker android:id="@+id/timePicker" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:timePickerMode="spinner" />
+            <Button android:id="@+id/selectSong" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Выбрать песню (локальный файл)" />
+            <TextView android:id="@+id/songValue" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:padding="8dp"
+                android:textColor="#555E70" />
+            <Button android:id="@+id/selectBarcode" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Зарегистрировать штрихкод" />
+            <TextView android:id="@+id/barcodeValue" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:padding="8dp"
+                android:textColor="#555E70" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="ГРОМКОСТЬ БУДИЛЬНИКА" android:textStyle="bold"
+                android:textColor="#555E70" android:layout_marginTop="10dp" />
+            <SeekBar android:id="@+id/volume" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:max="100" />
+            <TextView android:id="@+id/volumeValue" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:textColor="#555E70" />
+            <Button android:id="@+id/saveAlarm" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Сохранить и включить ежедневно" />
+            <Button android:id="@+id/disableAlarm" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Отключить будущие будильники" />
+            <Button android:id="@+id/testAlarm" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Тест: сработает через 1 минуту" />
+            <Button android:id="@+id/notificationSettings" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Разрешить уведомления" />
+            <Button android:id="@+id/fullscreenSettings" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Настроить полноэкранный будильник" />
+            <Button android:id="@+id/batterySettings" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Проверить фоновые ограничения OxygenOS" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="14dp" android:textColor="#555E70"
+                android:text="Звук повторяется до сканирования кода. Кнопки на экране не выключают активный сигнал. Экстренная остановка: системные настройки → приложения → MadClock → Остановить принудительно." />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/activePanel" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="32dp" android:textSize="22sp" android:textStyle="bold"
+                android:textColor="#171B24" android:text="Чтобы выключить звук, отсканируй зарегистрированный штрихкод." />
+            <Button android:id="@+id/stopWithBarcode" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="24dp"
+                android:text="СКАНИРОВАТЬ ШТРИХКОД" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
