@@ -39,13 +39,16 @@
 ## Техническая реализация
 
 - Kotlin, Android SDK API 26–36 (target/compile 36).
-- AGP 8.13.2 + Gradle 8.13 + Java 17; GitHub Actions устанавливает инструменты в облаке.
+- AGP 8.13.2 + Gradle 8.13, байткод Java 17; GitHub Actions использует JDK 21 для тестов Robolectric Android 16.
 - CameraX 1.6.2 + ML Kit Barcode Scanning 17.3.0 (bundled).
 - `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12–12L), `setAlarmClock`.
 - `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `USAGE_ALARM`, `MediaPlayer` loop, `PARTIAL_WAKE_LOCK`.
 - Предусмотренные Android средства принудительной остановки приложения невозможно и не нужно блокировать.
 
 ## Проверочный сценарий
+
+Подробности сохранения активного сигнала, восстановления после уничтожения
+процесса и испытаний на OxygenOS: [устойчивость будильника](docs/alarm-recovery.md).
 
 1. Зарегистрировать физически удалённый от кровати штрихкод и выбрать локальную песню.
 2. Запустить тест через минуту и **заблокировать экран** планшета.
