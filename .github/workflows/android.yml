@@ -1,8 +1,9 @@
 
-name: Build MadClock APK
+name: Build MadClock experimental APK pair
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [main, master]
 
@@ -18,11 +19,12 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Java 17
+      # Robolectric's Android 16 runtime requires Java 21; APK bytecode stays Java 17.
+      - name: Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -33,14 +35,21 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Install Android 16 platform
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
 
-      - name: Build APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Build both APKs and independently test both modes
+        run: gradle :app:assembleDebug :audio:assembleDebug :app:testDebugUnitTest :audio:testDebugUnitTest :app:lintDebug :audio:lintDebug --stacktrace --no-daemon --max-workers=4
+
+      - name: Verify and package the matching APK pair
+        run: |
+          python3 scripts/check_apks.py
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/MadClock-debug.apk
+          cp audio/build/outputs/apk/debug/audio-debug.apk dist/MadClock-Audio-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MadClock-debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: MadClock-experimental-pair-debug
+          path: dist/*.apk
           if-no-files-found: error

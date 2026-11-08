@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">MadClock</string>
+    <string name="signal_mode">Экспериментальный звуковой режим</string>
+    <string name="mode_a">A — системные уведомления</string>
+    <string name="mode_b">B — отдельный MadClock Audio</string>
+    <string name="mode_a_description">A: встроенный glass_signal_alarm_60s, 20 системных событий через 30 секунд. Выбранная песня используется только в B. Длительность и подавление звука определяет Android.</string>
+    <string name="mode_b_description">B: выбранная песня повторяется в отдельном APK MadClock Audio. Установите оба APK одной подписи и разрешите уведомления помощнику.</string>
+    <string name="experimental_limits">Выключение сигнала — зарегистрированным штрихкодом. A ограничен 20 событиями; B повторяет песню до остановки. Системные остановка, разрешения и ограничения OxygenOS имеют приоритет.</string>
 </resources>

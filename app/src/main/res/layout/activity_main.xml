@@ -16,6 +16,10 @@
 
         <LinearLayout android:id="@+id/configPanel" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:orientation="vertical">
+            <Spinner android:id="@+id/signalMode" android:layout_width="match_parent"
+                android:layout_height="48dp" android:contentDescription="@string/signal_mode" />
+            <TextView android:id="@+id/modeDescription" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:padding="8dp" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:text="ВРЕМЯ БУДИЛЬНИКА" android:textStyle="bold" android:textColor="#555E70"
                 android:layout_marginTop="20dp" />
@@ -52,7 +56,7 @@
                 android:layout_height="wrap_content" android:text="Проверить фоновые ограничения OxygenOS" />
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="14dp" android:textColor="#555E70"
-                android:text="Звук повторяется до сканирования кода. Кнопки на экране не выключают активный сигнал. Экстренная остановка: системные настройки → приложения → MadClock → Остановить принудительно." />
+                android:text="@string/experimental_limits" />
         </LinearLayout>
 
         <LinearLayout android:id="@+id/activePanel" android:layout_width="match_parent"
