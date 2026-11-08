@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import org.junit.After
@@ -50,6 +51,14 @@ class AlarmRecoveryTest {
     private fun command(action: String, id: String, code: String? = null) =
         Intent(context, AlarmService::class.java).setAction(action)
             .putExtra(AlarmService.EXTRA_SESSION, id).putExtra(AlarmService.EXTRA_BARCODE, code)
+
+    @Test fun mergedManifestDoesNotInheritNetworkPermissions() {
+        @Suppress("DEPRECATION")
+        val permissions = context.packageManager.getPackageInfo(
+            context.packageName, PackageManager.GET_PERMISSIONS).requestedPermissions.orEmpty()
+        assertFalse(permissions.contains("android.permission.INTERNET"))
+        assertFalse(permissions.contains("android.permission.ACCESS_NETWORK_STATE"))
+    }
 
     @Test fun activeSessionSurvivesNewStoreAndSettingsChanges() {
         val active = store.beginAlarm(3)!!
