@@ -1,0 +1,22 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/appRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background">
+ <com.madclock.app.ContentFrame android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center_horizontal">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:paddingLeft="@dimen/page_margin" android:paddingRight="@dimen/page_margin">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:gravity="center_vertical"><ImageButton android:id="@+id/back" android:layout_width="48dp" android:layout_height="48dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_back" android:contentDescription="@string/back"/><TextView android:id="@+id/editorTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="22sp" android:textColor="@color/text_primary" android:fontFamily="sans-serif-medium"/></LinearLayout>
+  <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="24dp">
+    <TimePicker android:id="@+id/timePicker" android:layout_width="match_parent" android:layout_height="wrap_content" android:timePickerMode="spinner"/>
+    <TextView style="@style/FieldLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/repeat_label"/>
+    <Spinner android:id="@+id/repeatMode" android:layout_width="match_parent" android:layout_height="56dp"/>
+    <Switch android:id="@+id/editorEnabled" android:layout_width="match_parent" android:layout_height="56dp" android:text="@string/enabled" android:textColor="@color/text_primary" android:thumb="@drawable/switch_thumb" android:track="@drawable/switch_track" android:showText="false" android:splitTrack="false" android:thumbTint="@null" android:trackTint="@null"/>
+    <Button android:id="@+id/selectSong" style="@style/SecondaryButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="@string/select_song"/>
+    <TextView android:id="@+id/songValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="10dp" android:paddingBottom="20dp" android:textColor="@color/text_secondary" android:textSize="14sp"/>
+    <TextView style="@style/FieldLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/volume_label"/>
+    <SeekBar android:id="@+id/volume" android:layout_width="match_parent" android:layout_height="48dp" android:min="1" android:max="100"/>
+    <TextView android:id="@+id/volumeValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="16sp"/>
+    <Button android:id="@+id/saveAlarm" style="@style/PrimaryButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="24dp" android:text="@string/save"/>
+    <Button android:id="@+id/deleteAlarm" style="@style/SecondaryButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="12dp" android:text="@string/delete_alarm"/>
+   </LinearLayout>
+  </ScrollView>
+ </LinearLayout>
+ </com.madclock.app.ContentFrame>
+</FrameLayout>

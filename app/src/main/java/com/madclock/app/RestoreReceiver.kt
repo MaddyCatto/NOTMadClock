@@ -13,12 +13,9 @@ class RestoreReceiver : BroadcastReceiver() {
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" -> {
-                val restored = AlarmScheduler.scheduleNext(context)
-                val store = AlarmStore(context)
-                store.plan(AlarmKind.TEST)?.let { AlarmScheduler.scheduleRun(context, it, futureOnly = true) }
-                store.activeAlarm?.takeIf { it.mode == SignalMode.NOTIFICATIONS }
-                    ?.let { AlarmScheduler.scheduleRun(context, it, futureOnly = true) }
-                Log.i("MadClock", "Reschedule after ${intent.action}: $restored")
+                AlarmScheduler.restoreAll(context, clockChanged = intent.action == Intent.ACTION_TIME_CHANGED ||
+                    intent.action == Intent.ACTION_TIMEZONE_CHANGED)
+                Log.i("MadClock", "Restored independent schedules after ${intent.action}")
             }
         }
     }

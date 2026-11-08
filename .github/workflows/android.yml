@@ -1,5 +1,5 @@
 
-name: Build MadClock experimental APK pair
+name: Build MadClock APK pair
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
       - name: Install Android 16 platform
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
 
-      - name: Build both APKs and independently test both modes
+      - name: Build both APKs and test alarms, UI and separate audio
         run: gradle :app:assembleDebug :audio:assembleDebug :app:testDebugUnitTest :audio:testDebugUnitTest :app:lintDebug :audio:lintDebug --stacktrace --no-daemon --max-workers=4
 
       - name: Verify and package the matching APK pair
@@ -50,6 +50,13 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MadClock-experimental-pair-debug
+          name: MadClock-1.0-debug-pair
           path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Upload Android View renders
+        uses: actions/upload-artifact@v4
+        with:
+          name: MadClock-Deep-Purple-screens
+          path: app/build/reports/screenshots/*.png
           if-no-files-found: error

@@ -40,6 +40,7 @@ class BarcodeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_barcode)
+        UiSupport.decorate(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         status = findViewById(R.id.scanStatus)
         val isRegister = intent.getStringExtra(EXTRA_MODE) == MODE_REGISTER
@@ -106,7 +107,6 @@ class BarcodeActivity : ComponentActivity() {
                         return@setPositiveButton
                     }
                     store.barcode = value
-                    if (store.enabled) AlarmScheduler.scheduleNext(this)
                     Toast.makeText(this, "Код сохранён", Toast.LENGTH_SHORT).show()
                     finish()
                 }

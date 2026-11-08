@@ -9,7 +9,7 @@
         <!-- No MAIN/LAUNCHER activity, shared UID, or task used for playback. -->
         <activity android:name=".SetupActivity" android:exported="true"
             android:permission="com.madclock.audio.permission.CONTROL_AUDIO"
-            android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.Light.Dialog.NoActionBar" />
+            android:excludeFromRecents="true" android:theme="@style/AudioSetupTheme" />
         <service android:name=".AudioService" android:exported="true"
             android:permission="com.madclock.audio.permission.CONTROL_AUDIO"
             android:foregroundServiceType="mediaPlayback" android:stopWithTask="false" />

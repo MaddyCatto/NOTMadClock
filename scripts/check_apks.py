@@ -1,5 +1,4 @@
 """Verify the actual paired APKs, not just source manifests. Requires Android SDK tools."""
-import hashlib
 import os
 from pathlib import Path
 import re
@@ -38,7 +37,10 @@ assert fingerprint(MAIN) == fingerprint(AUDIO), "Both APKs must be installed fro
 for root in (main, audio):
     assert "android.permission.INTERNET" not in permissions(root)
 assert not permissions(main).intersection({"android.permission.WAKE_LOCK",
+    "android.permission.POST_NOTIFICATIONS", "android.permission.USE_FULL_SCREEN_INTENT",
     "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"})
+with zipfile.ZipFile(MAIN) as apk:
+    assert not any(name.endswith("glass_signal_alarm_60s.mp3") for name in apk.namelist())
 for service in main.findall("./application/service"):
     assert service.get(NS + "foregroundServiceType") is None
     assert not service.get(NS + "name").endswith("AlarmService")
@@ -53,9 +55,6 @@ for activity in audio.findall("./application/activity"):
     assert activity.get(NS + "permission") == control
     assert not any(c.get(NS + "name") == "android.intent.category.LAUNCHER"
         for c in activity.findall("./intent-filter/category"))
-with zipfile.ZipFile(MAIN) as apk:
-    sound = apk.read("res/raw/glass_signal_alarm_60s.mp3")
-assert hashlib.sha256(sound).hexdigest() == "3a86b3ba04d338ef3b23b1d1c702e548ec118a30cf1843122f92baade9d7308a"
 for source in (ROOT / "app/src/main").rglob("*.kt"):
     assert not re.search(r"\b(MediaPlayer|AudioTrack|SoundPool|RingtoneManager|PowerManager)\b", source.read_text()), source
-print("APK pair verified: same signer, separate packages, protected IPC, no main playback, no Internet, original MP3.")
+print("APK pair verified: same signer, separate packages, protected IPC, no main playback, no Internet, helper-only audio.")

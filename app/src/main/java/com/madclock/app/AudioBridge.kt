@@ -29,20 +29,20 @@ object AudioBridge {
         }.getOrElse { Log.w("MadClock", "Audio setup unavailable", it); false }
     }
     fun start(context: Context, active: ActiveAlarm): Boolean {
-        if (!trusted(context) || active.songUri == null) return false
+        if (!trusted(context)) return false
         return try {
             val uri = Uri.parse(active.songUri)
             context.grantUriPermission(C.PACKAGE, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             context.startForegroundService(Intent(C.START).setComponent(ComponentName(C.PACKAGE, C.SERVICE))
                 .setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 .putExtra(C.SESSION, active.id).putExtra(C.VOLUME, active.volumePercent))
-            Log.i("MadClock", "Mode B command sent: session=${active.id}")
+            Log.i("MadClock", "Audio command sent: session=${active.id}")
             true
         } catch (e: RuntimeException) {
             Log.e("MadClock", "Audio APK start rejected; no main-app audio fallback", e); false
         }
     }
-    private fun stop(context: Context, id: String?, done: (Boolean) -> Unit) {
+    private fun stop(context: Context, id: String, done: (Boolean) -> Unit) {
         if (!installed(context)) { done(true); return }
         if (!trusted(context)) { done(false); return }
         val handler = Handler(Looper.getMainLooper())
@@ -65,7 +65,7 @@ object AudioBridge {
             ResultReceiver.CREATOR.createFromParcel(parcel)
         } finally { parcel.recycle() }
         try {
-            context.startForegroundService(Intent(if (id == null) C.STOP_ALL else C.STOP)
+            context.startForegroundService(Intent(C.STOP)
                 .setComponent(ComponentName(C.PACKAGE, C.SERVICE)).putExtra(C.SESSION, id).putExtra(C.ACK, remoteAck))
         } catch (e: RuntimeException) {
             handler.removeCallbacks(timeout)
@@ -73,7 +73,6 @@ object AudioBridge {
             finish(false)
         }
     }
-    fun ensureQuiet(context: Context, done: (Boolean) -> Unit) = stop(context, null, done)
     fun flushPendingStop(context: Context, done: (Boolean) -> Unit = {}) {
         val store = AlarmStore(context)
         val id = store.pendingAudioStop

@@ -8,80 +8,48 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import java.util.Calendar
+import java.util.UUID
 
 object AlarmScheduler {
-    const val EVENT_COUNT = 20
-    const val EVENT_INTERVAL_MS = 30_000L
     private fun manager(c: Context) = c.getSystemService(AlarmManager::class.java)
     fun hasExactAlarmAccess(c: Context) = Build.VERSION.SDK_INT < 31 || manager(c).canScheduleExactAlarms()
-    private fun event(c: Context, a: ActiveAlarm, slot: Int, flags: Int): PendingIntent? =
-        PendingIntent.getBroadcast(c, 2200 + slot,
-            Intent(c, AlarmReceiver::class.java).setAction(AlarmReceiver.ACTION_EVENT)
-                .setData(Uri.parse("madclock://event/${a.kind}/${a.id}/$slot"))
-                .putExtra("session", a.id).putExtra("kind", a.kind.name).putExtra("slot", slot),
-            flags or PendingIntent.FLAG_IMMUTABLE)
-    private fun show(c: Context) = PendingIntent.getActivity(c, 1103,
-        Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
-    fun scheduleNext(c: Context): Boolean {
-        val store = AlarmStore(c)
-        if (!store.enabled || !store.isConfigured()) return false
-        val at = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, store.hour); set(Calendar.MINUTE, store.minute)
-            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            if (timeInMillis <= System.currentTimeMillis() + 1_000) add(Calendar.DAY_OF_YEAR, 1)
-        }.timeInMillis
-        return replace(c, store.newPlan(AlarmKind.DAILY, at))
-    }
-    fun scheduleTest(c: Context): Boolean {
-        val store = AlarmStore(c)
-        return store.isConfigured() && replace(c, store.newPlan(AlarmKind.TEST, System.currentTimeMillis() + 60_000))
-    }
-    private fun replace(c: Context, run: ActiveAlarm): Boolean {
-        if (!hasExactAlarmAccess(c)) return false
-        val store = AlarmStore(c)
-        store.plan(run.kind)?.takeIf { it.id != store.activeAlarm?.id }?.let { cancelRun(c, it) }
-        if (!store.savePlan(run.kind, run)) return false
-        if (scheduleRun(c, run)) return true
-        store.savePlan(run.kind, null)
-        return false
-    }
-    /** All A events exist before the first sound; receivers never schedule the next A slot. */
-    fun scheduleRun(c: Context, run: ActiveAlarm, futureOnly: Boolean = false): Boolean {
-        if (!hasExactAlarmAccess(c)) return false
-        val count = if (run.mode == SignalMode.NOTIFICATIONS) EVENT_COUNT else 1
+    fun nextTime(a: AlarmRecord, now: Long = System.currentTimeMillis()): Long = Calendar.getInstance().apply {
+        timeInMillis = now; set(Calendar.HOUR_OF_DAY, a.hour); set(Calendar.MINUTE, a.minute)
+        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        if (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
+    }.timeInMillis
+    fun prepared(a: AlarmRecord, at: Long) = a.copy(nextAtMs = at, generation = UUID.randomUUID().toString())
+    private fun event(c: Context, a: AlarmRecord, flags: Int): PendingIntent? = PendingIntent.getBroadcast(c, 2300,
+        Intent(c, AlarmReceiver::class.java).setAction(AlarmReceiver.ACTION_ALARM)
+            .setData(Uri.parse("madclock://alarm/${a.id}"))
+            .putExtra("alarm_id", a.id).putExtra("generation", a.generation), flags or PendingIntent.FLAG_IMMUTABLE)
+    fun arm(c: Context, a: AlarmRecord): Boolean {
+        if (!a.enabled || a.nextAtMs == null || a.generation == null || !hasExactAlarmAccess(c)) return false
         return try {
-            repeat(count) { slot ->
-                val at = run.startAtMs + slot * EVENT_INTERVAL_MS
-                if (!futureOnly || (slot > run.lastNotificationSlot && at > System.currentTimeMillis())) {
-                    manager(c).setAlarmClock(AlarmManager.AlarmClockInfo(at, show(c)),
-                        event(c, run, slot, PendingIntent.FLAG_UPDATE_CURRENT)!!)
-                }
-            }
-            Log.i("MadClock", "Planned ${run.mode} session=${run.id} events=$count")
+            val show = PendingIntent.getActivity(c, 1103, Intent(c, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            manager(c).setAlarmClock(AlarmManager.AlarmClockInfo(a.nextAtMs, show),
+                event(c, a, PendingIntent.FLAG_UPDATE_CURRENT)!!)
             true
-        } catch (e: RuntimeException) {
-            cancelRun(c, run)
-            Log.e("MadClock", "Cannot plan signal ${run.mode}", e)
-            false
-        }
+        } catch (e: RuntimeException) { Log.e("MadClock", "Cannot schedule alarm=${a.id}", e); false }
     }
-    fun cancelRun(c: Context, run: ActiveAlarm) {
-        repeat(EVENT_COUNT) { slot ->
-            event(c, run, slot, PendingIntent.FLAG_NO_CREATE)?.let { manager(c).cancel(it); it.cancel() }
-        }
+    fun cancel(c: Context, a: AlarmRecord) {
+        event(c, a, PendingIntent.FLAG_NO_CREATE)?.let { manager(c).cancel(it); it.cancel() }
     }
-    private fun cancelPlan(c: Context, kind: AlarmKind) {
+    fun restoreAll(c: Context, clockChanged: Boolean = false, now: Long = System.currentTimeMillis()) {
         val store = AlarmStore(c)
-        store.plan(kind)?.takeIf { it.id != store.activeAlarm?.id }?.let { cancelRun(c, it) }
-        store.savePlan(kind, null)
-        // Retire the pre-migration daily/test seed; it must not start another run.
-        val oldAction = if (kind == AlarmKind.DAILY) "com.madclock.app.ALARM_DAILY" else "com.madclock.app.ALARM_TEST"
-        PendingIntent.getBroadcast(c, if (kind == AlarmKind.DAILY) 1101 else 1102,
-            Intent(c, AlarmReceiver::class.java).setAction(oldAction),
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)?.let { manager(c).cancel(it); it.cancel() }
+        store.alarms.forEach { old ->
+            if (!old.enabled) { cancel(c, old); return@forEach }
+            val at = when {
+                clockChanged || old.nextAtMs == null -> nextTime(old, now)
+                old.repeat == AlarmRepeat.ONCE -> maxOf(old.nextAtMs, now + 1_000)
+                old.nextAtMs > now -> old.nextAtMs
+                else -> nextTime(old, now)
+            }
+            val updated = prepared(old, at)
+            if (store.put(updated)) arm(c, updated)
+        }
+        store.restored()
     }
-    fun disableDaily(c: Context) = cancelPlan(c, AlarmKind.DAILY)
-    fun cancelTest(c: Context) = cancelPlan(c, AlarmKind.TEST)
 }

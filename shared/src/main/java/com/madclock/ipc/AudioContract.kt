@@ -8,7 +8,6 @@ object AudioContract {
     const val PERMISSION = "com.madclock.audio.permission.CONTROL_AUDIO"
     const val START = "com.madclock.audio.START"
     const val STOP = "com.madclock.audio.STOP"
-    const val STOP_ALL = "com.madclock.audio.STOP_ALL"
     const val SESSION = "session"
     const val VOLUME = "volume"
     const val ACK = "ack"

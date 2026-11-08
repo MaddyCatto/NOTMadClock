@@ -1,90 +1,49 @@
 package com.madclock.app
 
 import android.content.Context
-import android.media.AudioManager
 import android.util.Log
-import kotlin.math.roundToInt
+import java.util.UUID
 
 object SignalController {
-    fun onEvent(context: Context, id: String, kind: AlarmKind, slot: Int, done: () -> Unit) {
+    fun onAlarm(context: Context, alarmId: String, generation: String, now: Long = System.currentTimeMillis()) {
         val store = AlarmStore(context)
-        if (slot !in 0 until AlarmScheduler.EVENT_COUNT) { done(); return }
-        val current = store.activeAlarm
-        val planned = current?.takeIf { it.id == id } ?: store.plan(kind)?.takeIf { it.id == id }
-        if (planned == null || planned.id != id || (kind == AlarmKind.DAILY &&
-                store.activeAlarm == null && !store.enabled)) { done(); return }
-        if (planned.mode == SignalMode.AUDIO_APP && slot != 0) { done(); return }
-        if (current != null && current.id != id) {
-            // A still-active signal must not swallow tomorrow's recurrence of a blocked run.
-            if (kind == AlarmKind.DAILY && store.enabled) AlarmScheduler.scheduleNext(context)
-            else if (kind == AlarmKind.TEST) AlarmScheduler.cancelTest(context)
-            done()
+        val due = store.find(alarmId) ?: return
+        if (!due.enabled || due.generation != generation) return
+        val next = if (due.repeat == AlarmRepeat.DAILY)
+            AlarmScheduler.prepared(due, AlarmScheduler.nextTime(due, now))
+        else due.copy(enabled = false, nextAtMs = null, generation = null)
+        if (!store.put(next)) return
+        if (next.enabled) AlarmScheduler.arm(context, next) else AlarmScheduler.cancel(context, next)
+        // Consume/reschedule every due alarm, even when its sound coalesces into an existing signal.
+        if (store.activeAlarm != null || store.pendingAudioStop != null) {
+            Log.i("MadClock", "Overlapping alarm consumed without interrupting audio: alarm=$alarmId")
             return
         }
-        if (store.pendingAudioStop != null) {
-            AudioBridge.flushPendingStop(context) { stopped ->
-                if (stopped && store.pendingAudioStop == null && planned.mode == SignalMode.AUDIO_APP) {
-                    onEvent(context, id, kind, slot, done)
-                } else {
-                    // A has later preplanned slots. B has no later slot; retain the daily recurrence
-                    // even if this one cannot safely start. Never chain two 8-second ACK waits.
-                    if (kind == AlarmKind.DAILY &&
-                        (planned.mode == SignalMode.AUDIO_APP || slot == AlarmScheduler.EVENT_COUNT - 1))
-                        AlarmScheduler.scheduleNext(context)
-                    done()
-                }
-            }
-            return
-        }
-        val fresh = store.activeAlarm == null
-        val active = store.activate(planned) ?: run { done(); return }
-        if (fresh && kind == AlarmKind.DAILY) AlarmScheduler.scheduleNext(context)
-        if (active.mode == SignalMode.AUDIO_APP) {
-            NotificationSignals.cancel(context)
-            if (!AudioBridge.start(context, active)) Log.w("MadClock", "Mode B unavailable; signal remains active")
-            done()
-        } else if (active.audioQuietConfirmed) {
-            postSlot(context, active.id, slot); done()
-        } else AudioBridge.ensureQuiet(context) { quiet ->
-            if (quiet) postSlot(context, active.id, slot)
-            else Log.w("MadClock", "Mode A suppressed: helper silence not confirmed")
-            done()
-        }
+        start(context, due, now)
     }
-    private fun postSlot(context: Context, id: String, slot: Int) {
+    fun test(context: Context, alarm: AlarmRecord): Boolean {
         val store = AlarmStore(context)
-        val active = store.activeAlarm ?: return
-        if (active.id != id || active.mode != SignalMode.NOTIFICATIONS || slot <= active.lastNotificationSlot) return
-        val audio = context.getSystemService(AudioManager::class.java)
-        val updated = active.copy(audioQuietConfirmed = true, lastNotificationSlot = slot,
-            originalVolume = active.originalVolume ?: audio.getStreamVolume(AudioManager.STREAM_ALARM))
-        if (!store.updateActive(updated)) return
-        runCatching {
-            val max = audio.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            audio.setStreamVolume(AudioManager.STREAM_ALARM,
-                (max * active.volumePercent / 100.0).roundToInt().coerceIn(1, max), 0)
-        }.onFailure { Log.w("MadClock", "Alarm volume setting rejected", it) }
-        runCatching { NotificationSignals.post(context, slot) }
-            .onFailure { Log.e("MadClock", "System notification rejected", it) }
+        if (store.activeAlarm != null || store.pendingAudioStop != null) return false
+        return start(context, alarm, System.currentTimeMillis(), test = true)
+    }
+    private fun start(context: Context, alarm: AlarmRecord, now: Long, test: Boolean = false): Boolean {
+        val store = AlarmStore(context)
+        val code = store.barcode?.takeIf { it.isNotBlank() } ?: return false
+        val song = alarm.songUri?.takeIf { it.isNotBlank() } ?: return false
+        val active = ActiveAlarm(UUID.randomUUID().toString(), if (test) null else alarm.id, song, code, alarm.volumePercent, now)
+        if (!store.activate(active)) return false
+        if (!AudioBridge.start(context, active)) Log.w("MadClock", "Audio start unavailable; active occurrence retained")
+        return true
     }
     fun stopAfterScan(context: Context, id: String, code: String): Boolean {
-        val active = AlarmStore(context).finishAlarm(id, code) ?: return false
-        AlarmScheduler.cancelRun(context, active)
-        NotificationSignals.cancel(context)
-        if (active.mode == SignalMode.AUDIO_APP) AudioBridge.flushPendingStop(context)
-        else active.originalVolume?.let { before ->
-            runCatching { context.getSystemService(AudioManager::class.java)
-                .setStreamVolume(AudioManager.STREAM_ALARM, before, 0) }
-        }
+        if (!AlarmStore(context).finishAlarm(id, code)) return false
+        AudioBridge.flushPendingStop(context)
         return true
     }
     fun onVisibleLaunch(context: Context) {
         AudioBridge.flushPendingStop(context)
-        val active = AlarmStore(context).activeAlarm ?: return
-        if (active.mode == SignalMode.NOTIFICATIONS) AlarmScheduler.scheduleRun(context, active, futureOnly = true)
-        else {
-            NotificationSignals.cancel(context)
-            AudioBridge.start(context, active)
-        }
+        val store = AlarmStore(context)
+        if (store.needsRestore) AlarmScheduler.restoreAll(context)
+        if (store.pendingAudioStop == null) store.activeAlarm?.let { AudioBridge.start(context, it) }
     }
 }

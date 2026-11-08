@@ -65,11 +65,11 @@ class AudioService : Service() {
         Log.i("MadClockAudio", "Command=${intent?.action ?: "sticky"} pid=${android.os.Process.myPid()}")
         promote() // Including cold STOP commands sent with startForegroundService.
         val action = intent?.action
-        if (intent != null && (action == C.STOP || action == C.STOP_ALL)) {
+        if (intent != null && action == C.STOP) {
             val active = store.active
-            val id = if (action == C.STOP_ALL) active?.id else intent.getStringExtra(C.SESSION)
-            val ok = id == null || store.finish(id)
-            if (ok && active != null && (action == C.STOP_ALL || active.id == id)) {
+            val id = intent.getStringExtra(C.SESSION)
+            val ok = id != null && store.finish(id)
+            if (ok && active != null && active.id == id) {
                 releasePlayback()
                 restoreVolume(active)
                 cache(active.id).delete()

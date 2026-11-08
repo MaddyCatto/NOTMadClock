@@ -163,14 +163,14 @@ class AudioServiceTest {
         assertTrue(player(service)!!.isPlaying)
         assertEquals("two", store.active!!.id)
     }
-    @Test fun stopAllFencesTheActiveSessionBeforeNotificationModeCanStart() {
+    @Test fun stopWithoutSessionCannotImplicitlyStopPlayback() {
         registerCache()
         val service = service()
         service.onStartCommand(command(C.START), 0, 1); idle()
-        service.onStartCommand(command(C.STOP_ALL), 0, 2)
-        assertNull(store.active); assertNull(player(service))
-        service.onStartCommand(command(C.START), 0, 3); idle()
-        assertNull(store.active); assertNull(player(service))
+        val stop = command(C.STOP).apply { removeExtra(C.SESSION) }
+        service.onStartCommand(stop, 0, 2)
+        assertNotNull(store.active)
+        assertTrue(player(service)!!.isPlaying)
     }
     @Test fun volumeEnforcementLivesOnlyInHelperAndRestoresAfterStop() {
         registerCache()
