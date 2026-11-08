@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Parcel
 import android.os.ResultReceiver
 import android.util.Log
 import com.madclock.ipc.AudioContract as C
@@ -55,9 +56,17 @@ object AudioBridge {
                 finish(resultCode == C.OK)
             }
         }
+        // Intent.writeParcelable otherwise records our anonymous subclass name, unavailable
+        // to the other APK's class loader. Send the framework class with the same Binder endpoint.
+        val parcel = Parcel.obtain()
+        val remoteAck = try {
+            ack.writeToParcel(parcel, 0)
+            parcel.setDataPosition(0)
+            ResultReceiver.CREATOR.createFromParcel(parcel)
+        } finally { parcel.recycle() }
         try {
             context.startForegroundService(Intent(if (id == null) C.STOP_ALL else C.STOP)
-                .setComponent(ComponentName(C.PACKAGE, C.SERVICE)).putExtra(C.SESSION, id).putExtra(C.ACK, ack))
+                .setComponent(ComponentName(C.PACKAGE, C.SERVICE)).putExtra(C.SESSION, id).putExtra(C.ACK, remoteAck))
         } catch (e: RuntimeException) {
             handler.removeCallbacks(timeout)
             Log.e("MadClock", "Audio APK stop rejected; pending stop retained", e)

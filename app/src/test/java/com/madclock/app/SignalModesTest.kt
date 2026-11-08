@@ -26,6 +26,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowAlarmManager
+import org.robolectric.shadow.api.Shadow
+import org.robolectric.util.ReflectionHelpers.ClassParameter
 import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
@@ -66,7 +68,13 @@ class SignalModesTest {
     }
     @Suppress("DEPRECATION")
     private fun ack(intent: Intent, ok: Boolean) {
-        intent.getParcelableExtra<ResultReceiver>(C.ACK)!!.send(if (ok) C.OK else C.FAILED, Bundle())
+        val receiver = intent.getParcelableExtra<ResultReceiver>(C.ACK)!!
+        assertEquals(ResultReceiver::class.java, receiver.javaClass)
+        // Robolectric's ShadowResultReceiver invokes onReceiveResult on the parcelled base
+        // object and loses its Binder endpoint. Exercise Android's real send implementation.
+        Shadow.directlyOn<Any?, ResultReceiver>(receiver, ResultReceiver::class.java, "send",
+            ClassParameter.from(Int::class.javaPrimitiveType!!, if (ok) C.OK else C.FAILED),
+            ClassParameter.from(Bundle::class.java, Bundle()))
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
     }
 
@@ -183,6 +191,9 @@ class SignalModesTest {
         assertFalse(fire(plan))
         val stop = nextService()!!
         assertEquals(C.STOP_ALL, stop.action)
+        @Suppress("DEPRECATION")
+        val wireAck = stop.getParcelableExtra<ResultReceiver>(C.ACK)!!
+        assertEquals(ResultReceiver::class.java, wireAck.javaClass)
         assertTrue(notifications().allNotifications.isEmpty())
         ack(stop, true)
         assertEquals(1, notifications().allNotifications.size)
@@ -320,5 +331,43 @@ class SignalModesTest {
         assertEquals(old, store.plan(AlarmKind.DAILY))
         assertEquals(20, alarms().scheduledAlarms.size)
         controller.pause().stop().destroy()
+    }
+    @Test fun blockedDailyRunStillSchedulesNextDayWithoutInterruptingActiveSignal() {
+        AlarmScheduler.scheduleTest(context)
+        val active = store.plan(AlarmKind.TEST)!!
+        fire(active)
+        store.mode = SignalMode.AUDIO_APP
+        store.enabled = true
+        AlarmScheduler.scheduleNext(context)
+        // Model an event due now. ShadowSystemClock controls Android uptime, not JVM wall time.
+        val blocked = store.plan(AlarmKind.DAILY)!!.copy(startAtMs = System.currentTimeMillis() - 1_000)
+        store.savePlan(AlarmKind.DAILY, blocked)
+        fire(blocked)
+        val next = store.plan(AlarmKind.DAILY)!!
+        assertEquals(active.id, store.activeAlarm!!.id)
+        assertTrue(next.startAtMs > blocked.startAtMs)
+        assertNotEquals(blocked.id, next.id)
+        assertNull(nextService())
+    }
+    @Test fun pendingStopFailureDoesNotPermanentlyLoseDailyBRecurrence() {
+        helper()
+        store.mode = SignalMode.AUDIO_APP
+        AlarmScheduler.scheduleTest(context)
+        val active = store.plan(AlarmKind.TEST)!!
+        fire(active); nextService()
+        SignalController.stopAfterScan(context, active.id, active.barcode); nextService()
+        store.enabled = true
+        AlarmScheduler.scheduleNext(context)
+        val blocked = store.plan(AlarmKind.DAILY)!!.copy(startAtMs = System.currentTimeMillis() - 1_000)
+        store.savePlan(AlarmKind.DAILY, blocked)
+        fire(blocked)
+        val stop = nextService()!!
+        assertEquals(C.STOP, stop.action)
+        ack(stop, false)
+        assertNull(store.activeAlarm)
+        assertNotNull(store.pendingAudioStop)
+        assertTrue(store.plan(AlarmKind.DAILY)!!.startAtMs > blocked.startAtMs)
+        assertNotEquals(blocked.id, store.plan(AlarmKind.DAILY)!!.id)
+        assertNull(nextService())
     }
 }

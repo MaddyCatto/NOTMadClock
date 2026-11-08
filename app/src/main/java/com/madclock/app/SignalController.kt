@@ -9,12 +9,31 @@ object SignalController {
     fun onEvent(context: Context, id: String, kind: AlarmKind, slot: Int, done: () -> Unit) {
         val store = AlarmStore(context)
         if (slot !in 0 until AlarmScheduler.EVENT_COUNT) { done(); return }
-        val planned = store.activeAlarm ?: store.plan(kind)
+        val current = store.activeAlarm
+        val planned = current?.takeIf { it.id == id } ?: store.plan(kind)?.takeIf { it.id == id }
         if (planned == null || planned.id != id || (kind == AlarmKind.DAILY &&
                 store.activeAlarm == null && !store.enabled)) { done(); return }
         if (planned.mode == SignalMode.AUDIO_APP && slot != 0) { done(); return }
+        if (current != null && current.id != id) {
+            // A still-active signal must not swallow tomorrow's recurrence of a blocked run.
+            if (kind == AlarmKind.DAILY && store.enabled) AlarmScheduler.scheduleNext(context)
+            else if (kind == AlarmKind.TEST) AlarmScheduler.cancelTest(context)
+            done()
+            return
+        }
         if (store.pendingAudioStop != null) {
-            AudioBridge.flushPendingStop(context) { done() }
+            AudioBridge.flushPendingStop(context) { stopped ->
+                if (stopped && store.pendingAudioStop == null && planned.mode == SignalMode.AUDIO_APP) {
+                    onEvent(context, id, kind, slot, done)
+                } else {
+                    // A has later preplanned slots. B has no later slot; retain the daily recurrence
+                    // even if this one cannot safely start. Never chain two 8-second ACK waits.
+                    if (kind == AlarmKind.DAILY &&
+                        (planned.mode == SignalMode.AUDIO_APP || slot == AlarmScheduler.EVENT_COUNT - 1))
+                        AlarmScheduler.scheduleNext(context)
+                    done()
+                }
+            }
             return
         }
         val fresh = store.activeAlarm == null
