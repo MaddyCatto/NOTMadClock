@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import android.os.SystemClock
 import android.util.Log
 
 /** SetAlarmClock sends an exact, user-visible alarm broadcast, even during Doze. */
@@ -11,9 +12,18 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val store = AlarmStore(context)
         if (intent.action == ACTION_RECOVER) {
-            val active = store.activeAlarm ?: return
-            if (intent.getStringExtra(AlarmService.EXTRA_SESSION) != active.id) return
-            AlarmService.resume(context, active.id)
+            val id = intent.getStringExtra(AlarmService.EXTRA_SESSION)
+            val token = intent.getStringExtra(AlarmService.EXTRA_RECOVERY_TOKEN)
+            val active = if (id != null && token != null) store.acceptRecovery(id, token) else null
+            if (active == null) {
+                Log.i("MadClock", "Recovery broadcast ignored: completed, duplicate or stale ticket; session=$id")
+                return
+            }
+            Log.i("MadClock", "Recovery delivered: session=$id ticket=$token " +
+                "sinceTaskRemovalMs=${SystemClock.elapsedRealtime() - active.recoveryRequestedElapsedMs}")
+            if (RecoveryStartPolicy.permitsBackgroundRecovery(context, active)) {
+                AlarmService.resume(context, active.id, token)
+            }
             return
         }
         val test = intent.action == ACTION_TEST

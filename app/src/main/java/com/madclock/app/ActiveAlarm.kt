@@ -7,5 +7,8 @@ data class ActiveAlarm(
     val barcode: String,
     val volumePercent: Int,
     val originalVolume: Int,
-    val recoveryAttempted: Boolean = false
+    val recoveryToken: String? = null,
+    val recoveryDelivered: Boolean = false,
+    val recoveryRequestedElapsedMs: Long = 0,
+    val recoveryRequestedAtMs: Long = 0
 )

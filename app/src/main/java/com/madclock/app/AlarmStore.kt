@@ -2,6 +2,7 @@ package com.madclock.app
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import org.json.JSONObject
 import java.util.UUID
 
@@ -47,7 +48,10 @@ class AlarmStore(context: Context) {
             ActiveAlarm(
                 json.getString("id"), json.optString("song").takeIf { it.isNotEmpty() },
                 json.getString("barcode"), json.getInt("volume"),
-                json.getInt("originalVolume"), json.optBoolean("recoveryAttempted")
+                json.getInt("originalVolume"),
+                json.optString("recoveryToken").takeIf { it.isNotEmpty() },
+                json.optBoolean("recoveryDelivered"), json.optLong("recoveryRequestedElapsedMs"),
+                json.optLong("recoveryRequestedAtMs")
             )
         }
 
@@ -60,10 +64,33 @@ class AlarmStore(context: Context) {
         return if (saveActive(alarm)) alarm else null
     }
 
-    fun claimRecovery(id: String): Boolean {
+    fun claimRecovery(id: String): ActiveAlarm? {
+        val alarm = activeAlarm ?: return null
+        if (alarm.id != id || alarm.recoveryToken != null) return null
+        val pending = alarm.copy(
+            recoveryToken = UUID.randomUUID().toString(), recoveryDelivered = false,
+            recoveryRequestedElapsedMs = SystemClock.elapsedRealtime(),
+            recoveryRequestedAtMs = System.currentTimeMillis()
+        )
+        return if (saveActive(pending)) pending else null
+    }
+
+    fun acceptRecovery(id: String, token: String): ActiveAlarm? {
+        val alarm = activeAlarm ?: return null
+        if (alarm.id != id || alarm.recoveryToken != token || alarm.recoveryDelivered) return null
+        val delivered = alarm.copy(recoveryDelivered = true)
+        return if (saveActive(delivered)) delivered else null
+    }
+
+    /** A service command or prepared player alone is not proof of successful playback. */
+    fun confirmPlayback(id: String): Boolean {
         val alarm = activeAlarm ?: return false
-        if (alarm.id != id || alarm.recoveryAttempted) return false
-        return saveActive(alarm.copy(recoveryAttempted = true))
+        if (alarm.id != id) return false
+        if (alarm.recoveryToken == null) return true
+        return saveActive(alarm.copy(
+            recoveryToken = null, recoveryDelivered = false,
+            recoveryRequestedElapsedMs = 0, recoveryRequestedAtMs = 0
+        ))
     }
 
     fun finishAlarm(id: String, scannedBarcode: String?): Boolean {
@@ -79,7 +106,10 @@ class AlarmStore(context: Context) {
             put("barcode", alarm.barcode)
             put("volume", alarm.volumePercent)
             put("originalVolume", alarm.originalVolume)
-            put("recoveryAttempted", alarm.recoveryAttempted)
+            put("recoveryToken", alarm.recoveryToken ?: "")
+            put("recoveryDelivered", alarm.recoveryDelivered)
+            put("recoveryRequestedElapsedMs", alarm.recoveryRequestedElapsedMs)
+            put("recoveryRequestedAtMs", alarm.recoveryRequestedAtMs)
         }.toString()
     ).commit()
 }
