@@ -19,6 +19,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.os.Process
 import android.util.Log
 import kotlin.math.roundToInt
 
@@ -69,6 +70,7 @@ class AlarmService : Service() {
         super.onCreate()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         createChannel()
+        Log.i("MadClock", "Service created: pid=${Process.myPid()}")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -81,7 +83,7 @@ class AlarmService : Service() {
                 // Persist completion before cancelling the ticket or releasing resources.
                 stoppedByScan = true
                 originalVolume = active.originalVolume
-                runCatching { AlarmScheduler.cancelRecovery(this) }
+                runCatching { AlarmScheduler.cancelRecovery(this, active) }
                     .onFailure { Log.w("MadClock", "Cannot cancel continuation; saved session is cleared", it) }
                 handler.removeCallbacksAndMessages(null)
                 isRinging = false
@@ -95,16 +97,25 @@ class AlarmService : Service() {
         // Null is the framework's sticky restart. Explicit starts must match the saved session;
         // a late recovery command must never recreate an alarm already completed by a scan.
         val allowed = intent == null ||
-            (intent.action == ACTION_START && intent.getStringExtra(EXTRA_SESSION) == active?.id)
+            (intent.action == ACTION_START && intent.getStringExtra(EXTRA_SESSION) == active?.id &&
+                (!intent.hasExtra(EXTRA_RECOVERY_TOKEN) ||
+                    (intent.getStringExtra(EXTRA_RECOVERY_TOKEN) == active?.recoveryToken &&
+                        active?.recoveryDelivered == true)))
         if (active == null) {
             stopSelf()
             return START_NOT_STICKY
         }
         if (!allowed) {
+            Log.i("MadClock", "Service command ignored: stale session or recovery token")
             if (!isRinging) stopSelf(startId)
             return if (isRinging) START_STICKY else START_NOT_STICKY
         }
         if (!isRinging) startRinging(active)
+        else if (active.recoveryToken != null &&
+            runCatching { player?.isPlaying == true }.getOrDefault(false)) {
+            // The task was removed but Android kept this player alive. No second player is needed.
+            AlarmScheduler.playbackStarted(this, active.id)
+        }
         return START_STICKY
     }
 
@@ -141,8 +152,8 @@ class AlarmService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        Log.i("MadClock", "Task removed; ringing=$isRinging")
-        // stopWithTask=false leaves this FGS playing. Some OEMs kill it anyway; this bounded
+        Log.i("MadClock", "Task removed; ringing=$isRinging pid=${Process.myPid()}")
+        // stopWithTask=false leaves this FGS playing. Some OEMs kill it anyway; this single
         // exact-alarm continuation may help only if the OS delivers this callback and alarm.
         AlarmStore(this).activeAlarm?.let {
             AlarmScheduler.recoverAfterTaskRemoval(this, it.id)
@@ -167,7 +178,16 @@ class AlarmService : Service() {
             setAudioAttributes(alarmAttributes)
             isLooping = true
             setOnPreparedListener { ready ->
-                if (isRinging && !finished) ready.start()
+                if (isRinging && !finished && ready === player) {
+                    try {
+                        ready.start()
+                        session?.let { AlarmScheduler.playbackStarted(this@AlarmService, it.id) }
+                    } catch (error: RuntimeException) {
+                        Log.w("MadClock", "Player start failed; recovery remains in flight", error)
+                        if (!fallbackActive) handler.post { playFallback() }
+                        else handler.post { stopSelf() }
+                    }
+                }
             }
             setOnErrorListener { _, what, extra ->
                 Log.w("MadClock", "Audio playback error: $what/$extra")
@@ -179,7 +199,11 @@ class AlarmService : Service() {
                 prepareAsync()
             } catch (error: Exception) {
                 Log.w("MadClock", "Selected file unavailable, using fallback", error)
-                handler.post { playFallback() }
+                if (!fallbackActive) handler.post { playFallback() }
+                else {
+                    Log.e("MadClock", "Fallback preparation failed; session retained for visible resume")
+                    handler.post { stopSelf() }
+                }
             }
         }
     }
@@ -247,17 +271,20 @@ class AlarmService : Service() {
         const val ACTION_STOP = "com.madclock.app.STOP_AFTER_SCAN"
         const val EXTRA_BARCODE = "barcode"
         const val EXTRA_SESSION = "session"
+        const val EXTRA_RECOVERY_TOKEN = "recovery_token"
         private const val CHANNEL_ID = "madclock_alarm_v1"
         private const val NOTIFICATION_ID = 711
         @Volatile var isRinging: Boolean = false
             private set
 
         /** Only call from a visible Activity, an exact-alarm receiver, or let Android restart us. */
-        fun resume(context: Context, sessionId: String): Boolean = try {
+        fun resume(context: Context, sessionId: String, recoveryToken: String? = null): Boolean = try {
             context.startForegroundService(
                 Intent(context, AlarmService::class.java).setAction(ACTION_START)
                     .putExtra(EXTRA_SESSION, sessionId)
+                    .apply { if (recoveryToken != null) putExtra(EXTRA_RECOVERY_TOKEN, recoveryToken) }
             )
+            Log.i("MadClock", "Service start requested: session=$sessionId recovery=${recoveryToken != null}")
             true
         } catch (error: RuntimeException) {
             // A rejected start leaves state intact for the next user-visible launch. No retry loop.
