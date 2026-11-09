@@ -1,6 +1,7 @@
 """Verify the actual paired APKs, not just source manifests. Requires Android SDK tools."""
 import os
 import argparse
+import hashlib
 from pathlib import Path
 import re
 import shutil
@@ -63,6 +64,10 @@ assert not permissions(main).intersection({"android.permission.WAKE_LOCK",
     "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"})
 with zipfile.ZipFile(MAIN) as apk:
     assert not any(name.endswith("glass_signal_alarm_60s.mp3") for name in apk.namelist())
+    artwork = [name for name in apk.namelist() if name.endswith("/ic_launcher_artwork.png")]
+    assert len(artwork) == 1
+    assert hashlib.sha256(apk.read(artwork[0])).hexdigest() == \
+        "2fec6ea5832eb171d2ab87df9c3b21a0b5fc4bdcc1944c9a1aa9fc14a00879e7", "Launcher PNG differs from the user's original"
 for service in main.findall("./application/service"):
     assert service.get(NS + "foregroundServiceType") is None
     assert not service.get(NS + "name").endswith("AlarmService")

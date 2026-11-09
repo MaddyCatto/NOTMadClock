@@ -1,0 +1,4 @@
+<resources>
+    <!-- Exact top-left background pixel of the supplied PNG. -->
+    <color name="launcher_background">#180330</color>
+</resources>

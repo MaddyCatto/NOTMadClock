@@ -3,14 +3,13 @@
   "base_commit": "7900cabbf59e34b68757b71370cdf98124096056",
   "scope": "Local debug APKs; not a MASVS certification or physical-device test",
   "tests": {
-    "last_full_run": 101,
-    "main": 63,
-    "audio": 38,
-    "additional_targeted_tests": 16
+    "last_full_run": 106,
+    "main": 68,
+    "audio": 38
   },
   "lint": {
     "app_errors": 0,
-    "app_warnings": 38,
+    "app_warnings": 41,
     "audio_errors": 0,
     "audio_warnings": 1
   },
@@ -24,7 +23,7 @@
     "apks": [
       {
         "package": "com.madclock.app",
-        "sha256": "651fe6f5390a525dca7d8fd0714c9baa3029c8c4eb0dafcf86b0c58f7ca23a73",
+        "sha256": "c4b7d6309fda5bba96610653bfd43fc5762e96a608d1e0d3c7d59a78ffcd4e35",
         "permissions": [
           "android.permission.CAMERA",
           "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -457,5 +456,27 @@
         ]
       }
     ]
+  },
+  "launcher_icon": {
+    "source_archive_member": "MadClock Neon Alarm Monogram.png",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "png_sha256": "2fec6ea5832eb171d2ab87df9c3b21a0b5fc4bdcc1944c9a1aa9fc14a00879e7",
+    "source_and_packaged_png_match_original_bytes": true,
+    "adaptive_inset_percent": 12.5,
+    "resource_tests_api": [
+      28,
+      36
+    ],
+    "native_render_api": 28,
+    "tested_masks": [
+      "circle",
+      "rounded-square",
+      "squircle"
+    ],
+    "physical_launcher_tested": false,
+    "audio_launcher_added": false
   }
 }

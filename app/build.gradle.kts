@@ -18,6 +18,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Preserve the supplied launcher PNG bytes in release as well as debug.
+            isCrunchPngs = false
         }
     }
 

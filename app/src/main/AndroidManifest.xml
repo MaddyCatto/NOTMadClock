@@ -21,8 +21,8 @@
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="MadClock"
-        android:icon="@drawable/ic_alarm"
-        android:roundIcon="@drawable/ic_alarm"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/MadClockTheme"
         android:supportsRtl="true">
 
