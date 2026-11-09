@@ -1,3 +1,17 @@
 <resources>
-    <string name="app_name">MadClock</string>
+ <string name="app_name">MadClock</string><string name="menu">Меню</string><string name="back">Назад</string>
+ <string name="my_alarms">Мои будильники</string><string name="daily">Ежедневно</string><string name="once">Однократно</string>
+ <string name="empty_title">Пока нет будильников</string><string name="empty_subtitle">Добавьте первый будильник — до десяти независимых расписаний.</string>
+ <string name="add_alarm">Добавить будильник</string><string name="edit_alarm">Будильник</string><string name="new_alarm">Новый будильник</string>
+ <string name="save">Сохранить</string><string name="delete_alarm">Удалить будильник</string><string name="enabled">Включён</string>
+ <string name="repeat_label">Повторение</string><string name="volume_label">Громкость</string><string name="volume_value">%1$d%%</string>
+ <string name="select_song">Выбрать песню</string><string name="no_song">Песня не выбрана</string>
+ <string name="barcode_menu">Штрихкод</string><string name="permissions_menu">Проверка разрешений</string><string name="sound_test">Тест звука</string><string name="about">О приложении</string>
+ <string name="scan_stop">Сканировать штрихкод</string><string name="alarm_sounding">Будильник звучит</string><string name="stopping">Останавливаем будильник…</string>
+ <string name="limit">Можно создать не более 10 будильников</string><string name="save_failed">Не удалось сохранить расписание. Проверьте разрешение точных будильников.</string>
+ <string name="delete_confirm">Удалить этот будильник? Уже звучащий сигнал выключается только штрихкодом.</string>
+ <string name="cancel">Отмена</string><string name="register_barcode">Зарегистрировать штрихкод</string><string name="replace_barcode">Заменить штрихкод</string>
+ <string name="active_first">Сначала завершите активный сигнал штрихкодом</string><string name="choose_test">Какую песню проверить?</string>
+ <string name="test_needs_alarm">Сначала добавьте будильник и выберите песню</string><string name="about_text">До 10 независимых будильников. Один общий штрихкод. Музыка воспроизводится отдельным приложением MadClock Audio, даже когда интерфейс MadClock закрыт.</string>
+ <string name="toggle_alarm">%1$s, %2$s — включение</string>
 </resources>

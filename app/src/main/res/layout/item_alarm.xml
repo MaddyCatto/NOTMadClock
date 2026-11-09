@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/alarmCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="88dp" android:orientation="horizontal" android:gravity="center_vertical" android:padding="16dp" android:layout_marginBottom="12dp" android:background="@drawable/card_background" android:clickable="true" android:focusable="true">
+ <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:importantForAccessibility="noHideDescendants">
+  <TextView android:id="@+id/alarmTime" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="@dimen/time_size" android:fontFamily="sans-serif-medium" android:textColor="@color/text_primary"/>
+  <TextView android:id="@+id/alarmRepeat" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textSize="14sp" android:textColor="@color/text_secondary"/>
+ </LinearLayout>
+ <Switch android:id="@+id/alarmEnabled" android:layout_width="64dp" android:layout_height="48dp" android:showText="false" android:thumb="@drawable/switch_thumb" android:track="@drawable/switch_track" android:splitTrack="false" android:switchMinWidth="44dp" android:thumbTint="@null" android:trackTint="@null"/>
+</LinearLayout>

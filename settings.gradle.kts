@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "MadClock"
 include(":app")
+include(":audio")

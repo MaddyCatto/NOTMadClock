@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original PNG, unchanged. Insets keep its complete monogram inside the 66dp safe circle. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="12.5%" android:insetTop="12.5%"
+    android:insetRight="12.5%" android:insetBottom="12.5%">
+    <bitmap android:src="@drawable/ic_launcher_artwork"
+        android:gravity="fill" android:filter="true" />
+</inset>

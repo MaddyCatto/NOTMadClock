@@ -1,219 +1,123 @@
 package com.madclock.app
 
-import android.Manifest
-import android.app.NotificationManager
+import android.app.AlertDialog
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.media.AudioManager
-import android.net.Uri
-import android.os.Build
+import android.content.SharedPreferences
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.provider.OpenableColumns
-import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.SeekBar
+import android.widget.PopupMenu
+import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
-import android.widget.TimePicker
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private lateinit var store: AlarmStore
-    private lateinit var timePicker: TimePicker
-    private lateinit var volume: SeekBar
-    private lateinit var status: TextView
-
-    private val chooseSong = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            try {
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                store.songUri = uri.toString()
-                store.songName = resolveName(uri)
-                if (store.enabled) AlarmScheduler.scheduleNext(this)
-                refresh()
-            } catch (_: SecurityException) {
-                toast("Не удалось получить постоянный доступ к аудиофайлу")
-            }
-        }
-    }
-
-    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-        refresh()
-    }
-
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val refreshTask = object : Runnable {
-        override fun run() {
-            refresh()
-            mainHandler.postDelayed(this, 1500L)
-        }
-    }
-
+    private var rendered = false
+    private val changes = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> render() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        store = AlarmStore(this)
         setContentView(R.layout.activity_main)
-        timePicker = findViewById(R.id.timePicker)
-        timePicker.setIs24HourView(true)
-        timePicker.hour = store.hour
-        timePicker.minute = store.minute
-        volume = findViewById(R.id.volume)
-        volume.progress = store.volumePercent
-        status = findViewById(R.id.status)
-
-        volume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                findViewById<TextView>(R.id.volumeValue).text = "${progress.coerceAtLeast(1)}%"
+        UiSupport.decorate(this)
+        store = AlarmStore(this)
+        findViewById<ImageButton>(R.id.moreMenu).setOnClickListener { openMenu(it) }
+        findViewById<ImageButton>(R.id.addAlarm).setOnClickListener { add() }
+        findViewById<Button>(R.id.addEmpty).setOnClickListener { add() }
+        findViewById<Button>(R.id.scanActive).setOnClickListener { UiSupport.barcode(this, false) }
+        render()
+    }
+    private fun add() {
+        if (store.alarms.size >= AlarmStore.MAX_ALARMS) { UiSupport.toast(this, getString(R.string.limit)); return }
+        startActivity(Intent(this, AlarmEditorActivity::class.java))
+    }
+    private fun render() {
+        if (!::store.isInitialized) return
+        val scroll = findViewById<ScrollView>(R.id.alarmScroll)
+        val position = scroll.scrollY
+        val list = findViewById<LinearLayout>(R.id.alarmList)
+        list.removeAllViews()
+        val records = store.alarms.sortedWith(compareBy<AlarmRecord> { it.hour }.thenBy { it.minute }.thenBy { it.id })
+        records.forEach { alarm ->
+            val card = layoutInflater.inflate(R.layout.item_alarm, list, false)
+            card.tag = alarm.id
+            card.contentDescription = "${alarm.timeLabel()}, ${UiSupport.repeat(this, alarm.repeat)}"
+            card.findViewById<TextView>(R.id.alarmTime).apply {
+                text = alarm.timeLabel(); setTextColor(getColor(if (alarm.enabled) R.color.text_primary else R.color.text_secondary))
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
-            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
-        })
-
-        findViewById<Button>(R.id.selectSong).setOnClickListener {
-            chooseSong.launch(arrayOf("audio/*"))
-        }
-        findViewById<Button>(R.id.selectBarcode).setOnClickListener {
-            startActivity(Intent(this, BarcodeActivity::class.java).putExtra(
-                BarcodeActivity.EXTRA_MODE, BarcodeActivity.MODE_REGISTER
-            ))
-        }
-        findViewById<Button>(R.id.stopWithBarcode).setOnClickListener {
-            startActivity(Intent(this, BarcodeActivity::class.java).putExtra(
-                BarcodeActivity.EXTRA_MODE, BarcodeActivity.MODE_STOP
-            ))
-        }
-        findViewById<Button>(R.id.saveAlarm).setOnClickListener { enableAlarm() }
-        findViewById<Button>(R.id.disableAlarm).setOnClickListener {
-            store.enabled = false
-            AlarmScheduler.disableDaily(this)
-            AlarmScheduler.cancelTest(this)
-            toast("Будущие будильники отменены")
-            refresh()
-        }
-        findViewById<Button>(R.id.testAlarm).setOnClickListener { testAlarm() }
-        findViewById<Button>(R.id.notificationSettings).setOnClickListener {
-            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                openAppSettings()
+            card.findViewById<TextView>(R.id.alarmRepeat).apply {
+                text = UiSupport.repeat(this@MainActivity, alarm.repeat); alpha = if (alarm.enabled) 1f else 0.65f
             }
-        }
-        findViewById<Button>(R.id.fullscreenSettings).setOnClickListener {
-            if (Build.VERSION.SDK_INT >= 34) {
-                runCatching {
-                    startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
-                        data = Uri.parse("package:$packageName")
-                    })
-                }.onFailure { openAppSettings() }
-            } else openAppSettings()
-        }
-        findViewById<Button>(R.id.batterySettings).setOnClickListener {
-            openAppSettings()
-        }
-        refresh()
-    }
-
-    private fun canEnable(): Boolean {
-        if (!store.isConfigured()) {
-            toast("Сначала выбери песню и зарегистрируй штрихкод")
-            return false
-        }
-        if (!AlarmScheduler.hasExactAlarmAccess(this)) {
-            toast("Разреши точные будильники в настройках")
-            if (Build.VERSION.SDK_INT >= 31) {
-                runCatching { startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)) }
-                    .onFailure { openAppSettings() }
-            }
-            return false
-        }
-        return true
-    }
-
-    private fun saveSettings() {
-        store.hour = timePicker.hour
-        store.minute = timePicker.minute
-        store.volumePercent = volume.progress.coerceAtLeast(1)
-    }
-
-    private fun enableAlarm() {
-        saveSettings()
-        if (!canEnable()) return
-        store.enabled = true
-        if (AlarmScheduler.scheduleNext(this)) {
-            toast("Ежедневный будильник включён")
-        } else {
-            store.enabled = false
-            toast("Не удалось запланировать будильник")
-        }
-        refresh()
-    }
-
-    private fun testAlarm() {
-        saveSettings()
-        if (!canEnable()) return
-        if (AlarmScheduler.scheduleTest(this)) {
-            toast("Тестовый будильник прозвучит примерно через минуту")
-        } else {
-            toast("Не удалось запланировать тест")
-        }
-    }
-
-    private fun refresh() {
-        if (!::store.isInitialized || !::status.isInitialized) return
-        val ringing = AlarmService.isRinging
-        findViewById<LinearLayout>(R.id.configPanel).visibility = if (ringing) View.GONE else View.VISIBLE
-        findViewById<LinearLayout>(R.id.activePanel).visibility = if (ringing) View.VISIBLE else View.GONE
-        status.text = when {
-            ringing -> "БУДИЛЬНИК ЗВУЧИТ. Выключение — только сканированием."
-            store.enabled -> "Включён ежедневно: %02d:%02d".format(store.hour, store.minute)
-            else -> "Будильник выключен"
-        }
-        if (!ringing) {
-            findViewById<TextView>(R.id.songValue).text = store.songName ?: "Песня не выбрана"
-            findViewById<TextView>(R.id.barcodeValue).text =
-                if (store.barcode.isNullOrBlank()) "Штрихкод не зарегистрирован" else "Штрихкод зарегистрирован"
-            findViewById<TextView>(R.id.volumeValue).text = "${volume.progress.coerceAtLeast(1)}%"
-        }
-        if (ringing && Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        }
-    }
-
-    private fun resolveName(uri: Uri): String {
-        return runCatching {
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
+            val toggle = card.findViewById<Switch>(R.id.alarmEnabled)
+            toggle.isChecked = alarm.enabled
+            toggle.contentDescription = getString(R.string.toggle_alarm, alarm.timeLabel(), UiSupport.repeat(this, alarm.repeat))
+            var reverting = false
+            toggle.setOnCheckedChangeListener { button, checked ->
+                if (!reverting) {
+                    val latest = store.find(alarm.id)
+                    val ready = latest != null && (!checked || UiSupport.ready(this, latest))
+                    if (ready && latest != null) {
+                        if (!AlarmActions.save(this, latest.copy(enabled = checked))) {
+                            reverting = true; button.isChecked = latest.enabled; reverting = false
+                            UiSupport.toast(this, getString(R.string.save_failed))
+                        }
+                    } else { reverting = true; button.isChecked = latest?.enabled ?: false; reverting = false }
                 }
-        }.getOrNull() ?: uri.lastPathSegment ?: "Выбранная песня"
+            }
+            card.setOnClickListener { startActivity(Intent(this, AlarmEditorActivity::class.java).putExtra("alarm_id", alarm.id)) }
+            list.addView(card)
+        }
+        findViewById<View>(R.id.emptyState).visibility = if (records.isEmpty()) View.VISIBLE else View.GONE
+        findViewById<ImageButton>(R.id.addAlarm).apply {
+            isEnabled = records.size < AlarmStore.MAX_ALARMS; alpha = if (isEnabled) 1f else 0.45f
+            contentDescription = getString(if (isEnabled) R.string.add_alarm else R.string.limit)
+        }
+        val active = store.activeAlarm
+        val pending = store.pendingAudioStop != null
+        findViewById<View>(R.id.activeBanner).visibility = if (active != null || pending) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.activeText).setText(if (active != null) R.string.alarm_sounding else R.string.stopping)
+        findViewById<Button>(R.id.scanActive).visibility = if (active != null) View.VISIBLE else View.GONE
+        if (rendered) scroll.post { scroll.scrollTo(0, position) }
+        rendered = true
     }
-
-    private fun openAppSettings() {
-        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
-        })
+    private fun openMenu(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, R.string.barcode_menu); menu.add(0, 2, 1, R.string.permissions_menu)
+            menu.add(0, 3, 2, R.string.sound_test); menu.add(0, 4, 3, R.string.about)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    1 -> if (store.activeAlarm != null) UiSupport.toast(this@MainActivity, getString(R.string.active_first))
+                        else AlertDialog.Builder(this@MainActivity).setTitle(R.string.barcode_menu)
+                            .setMessage(if (store.barcode.isNullOrBlank()) "Штрихкод пока не зарегистрирован" else "Общий штрихкод зарегистрирован")
+                            .setPositiveButton(if (store.barcode.isNullOrBlank()) R.string.register_barcode else R.string.replace_barcode)
+                                { _, _ -> UiSupport.barcode(this@MainActivity, true) }.setNegativeButton(R.string.cancel, null).show()
+                    2 -> startActivity(Intent(this@MainActivity, PermissionsActivity::class.java))
+                    3 -> testSound()
+                    4 -> AlertDialog.Builder(this@MainActivity).setTitle(R.string.app_name).setMessage(R.string.about_text)
+                        .setPositiveButton(android.R.string.ok, null).show()
+                }
+                true
+            }
+            show()
+        }
     }
-
-    private fun toast(value: String) = Toast.makeText(this, value, Toast.LENGTH_LONG).show()
-
-    override fun onResume() {
-        super.onResume()
-        mainHandler.removeCallbacks(refreshTask)
-        mainHandler.post(refreshTask)
+    private fun testSound() {
+        if (store.activeAlarm != null || store.pendingAudioStop != null) { UiSupport.toast(this, getString(R.string.active_first)); return }
+        val records = store.alarms.filter { !it.songUri.isNullOrBlank() }
+        if (records.isEmpty()) { UiSupport.toast(this, getString(R.string.test_needs_alarm)); return }
+        AlertDialog.Builder(this).setTitle(R.string.choose_test)
+            .setItems(records.map { "${it.timeLabel()} — ${it.songName ?: getString(R.string.select_song)}" }.toTypedArray()) { _, index ->
+                val record = records[index]
+                if (UiSupport.ready(this, record, exact = false)) SignalController.test(this, record)
+            }.setNegativeButton(R.string.cancel, null).show()
     }
-
-    override fun onPause() {
-        mainHandler.removeCallbacks(refreshTask)
-        super.onPause()
+    override fun onStart() {
+        super.onStart(); getSharedPreferences(AlarmStore.PREFS, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(changes)
+    }
+    override fun onResume() { super.onResume(); SignalController.onVisibleLaunch(this); render() }
+    override fun onStop() {
+        getSharedPreferences(AlarmStore.PREFS, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(changes); super.onStop()
     }
 }
