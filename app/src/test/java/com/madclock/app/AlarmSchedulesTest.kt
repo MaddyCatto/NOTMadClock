@@ -266,7 +266,8 @@ class AlarmSchedulesTest {
         @Suppress("DEPRECATION")
         fun installHelper(context: Context) {
             val pm = shadowOf(context.packageManager)
-            val own = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+            val own = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES or
+                PackageManager.GET_ACTIVITIES or PackageManager.GET_RECEIVERS or PackageManager.GET_SERVICES or PackageManager.GET_PROVIDERS)
             own.signatures = arrayOf(Signature("1234")); pm.installPackage(own)
             pm.installPackage(PackageInfo().apply {
                 packageName = C.PACKAGE

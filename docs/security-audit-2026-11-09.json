@@ -1,0 +1,461 @@
+{
+  "date": "2026-11-09",
+  "base_commit": "7900cabbf59e34b68757b71370cdf98124096056",
+  "scope": "Local debug APKs; not a MASVS certification or physical-device test",
+  "tests": {
+    "last_full_run": 101,
+    "main": 63,
+    "audio": 38,
+    "additional_targeted_tests": 16
+  },
+  "lint": {
+    "app_errors": 0,
+    "app_warnings": 38,
+    "audio_errors": 0,
+    "audio_warnings": 1
+  },
+  "mobsf": {
+    "version": "4.6.4",
+    "image_digest": "sha256:cf1465a3cc0c95488b9a6cdb1c7799d4b576d391ee28232c221f6a196bf2f74c",
+    "network": "none",
+    "domain_reputation_scan": false,
+    "virustotal": false,
+    "dynamic_analysis": false,
+    "apks": [
+      {
+        "package": "com.madclock.app",
+        "sha256": "651fe6f5390a525dca7d8fd0714c9baa3029c8c4eb0dafcf86b0c58f7ca23a73",
+        "permissions": [
+          "android.permission.CAMERA",
+          "android.permission.RECEIVE_BOOT_COMPLETED",
+          "android.permission.SCHEDULE_EXACT_ALARM",
+          "android.permission.USE_EXACT_ALARM",
+          "com.madclock.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+          "com.madclock.audio.permission.CONTROL_AUDIO"
+        ],
+        "manifest_findings": [
+          {
+            "rule": "vulnerable_os_version2",
+            "severity": "warning"
+          },
+          {
+            "rule": "app_is_debuggable",
+            "severity": "high"
+          },
+          {
+            "rule": "exported_protected_permission_not_defined",
+            "severity": "warning"
+          }
+        ],
+        "code_findings": [
+          {
+            "rule": "android_logging",
+            "severity": "info"
+          }
+        ],
+        "debug_certificate": true,
+        "detected_trackers_in_bundled_database": 0,
+        "entropy_secret_candidates": 34
+      },
+      {
+        "package": "com.madclock.audio",
+        "sha256": "54d30881f105cf1d3e4c5bf71ea5c507e75dc8c07620f3dcdc3877d5850feb91",
+        "permissions": [
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+          "android.permission.POST_NOTIFICATIONS",
+          "android.permission.WAKE_LOCK"
+        ],
+        "manifest_findings": [
+          {
+            "rule": "vulnerable_os_version2",
+            "severity": "warning"
+          },
+          {
+            "rule": "app_is_debuggable",
+            "severity": "high"
+          },
+          {
+            "rule": "exported_protected_permission_signature",
+            "severity": "info"
+          },
+          {
+            "rule": "exported_protected_permission_signature",
+            "severity": "info"
+          }
+        ],
+        "code_findings": [
+          {
+            "rule": "android_logging",
+            "severity": "info"
+          }
+        ],
+        "debug_certificate": true,
+        "detected_trackers_in_bundled_database": 0,
+        "entropy_secret_candidates": 0
+      }
+    ]
+  },
+  "dependency_audit": {
+    "checked_at": "2026-11-09T15:26:10.343505+00:00",
+    "resolved_coordinates": 263,
+    "apk_and_test_coordinates_with_advisories": 0,
+    "build_tool_coordinates_with_advisories": 13,
+    "remaining_build_tool_findings": [
+      {
+        "coordinate": "com.google.guava:guava@33.3.1-jre",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-xxph-c9ww-hj94",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-xxph-c9ww-hj94"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-codec-http2@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-93wv-jw9v-4972",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-93wv-jw9v-4972"
+          },
+          {
+            "ghsa_id": "GHSA-c69g-56f8-xwqj",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-c69g-56f8-xwqj"
+          },
+          {
+            "ghsa_id": "GHSA-563q-j3cm-6jxm",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-563q-j3cm-6jxm"
+          },
+          {
+            "ghsa_id": "GHSA-c2gf-v879-257j",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-c2gf-v879-257j"
+          },
+          {
+            "ghsa_id": "GHSA-5x3r-wrvg-rp6q",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-5x3r-wrvg-rp6q"
+          },
+          {
+            "ghsa_id": "GHSA-f6hv-jmp6-3vwv",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-f6hv-jmp6-3vwv"
+          },
+          {
+            "ghsa_id": "GHSA-w9fj-cfpg-grvv",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-w9fj-cfpg-grvv"
+          },
+          {
+            "ghsa_id": "GHSA-prj3-ccx8-p6x4",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-prj3-ccx8-p6x4"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-codec-http@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-8c42-7qj2-3j46",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-8c42-7qj2-3j46"
+          },
+          {
+            "ghsa_id": "GHSA-gcjf-9mgh-3p7g",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-gcjf-9mgh-3p7g"
+          },
+          {
+            "ghsa_id": "GHSA-q4f6-jm68-57ww",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-q4f6-jm68-57ww"
+          },
+          {
+            "ghsa_id": "GHSA-4mp9-239f-g9hg",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-4mp9-239f-g9hg"
+          },
+          {
+            "ghsa_id": "GHSA-6cqp-g7gg-8hr5",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-6cqp-g7gg-8hr5"
+          },
+          {
+            "ghsa_id": "GHSA-jppx-w49h-x2qq",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-jppx-w49h-x2qq"
+          },
+          {
+            "ghsa_id": "GHSA-mvh2-crg5-v77c",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-mvh2-crg5-v77c"
+          },
+          {
+            "ghsa_id": "GHSA-6jqx-86gh-f27w",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-6jqx-86gh-f27w"
+          },
+          {
+            "ghsa_id": "GHSA-hvcg-qmg6-jm4c",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-hvcg-qmg6-jm4c"
+          },
+          {
+            "ghsa_id": "GHSA-f6hv-jmp6-3vwv",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-f6hv-jmp6-3vwv"
+          },
+          {
+            "ghsa_id": "GHSA-38f8-5428-x5cv",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-38f8-5428-x5cv"
+          },
+          {
+            "ghsa_id": "GHSA-57rv-r2g8-2cj3",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-57rv-r2g8-2cj3"
+          },
+          {
+            "ghsa_id": "GHSA-xxqh-mfjm-7mv9",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-xxqh-mfjm-7mv9"
+          },
+          {
+            "ghsa_id": "GHSA-m4cv-j2px-7723",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-m4cv-j2px-7723"
+          },
+          {
+            "ghsa_id": "GHSA-v8h7-rr48-vmmv",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-v8h7-rr48-vmmv"
+          },
+          {
+            "ghsa_id": "GHSA-pwqr-wmgm-9rr8",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-pwqr-wmgm-9rr8"
+          },
+          {
+            "ghsa_id": "GHSA-84h7-rjj3-6jx4",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-84h7-rjj3-6jx4"
+          },
+          {
+            "ghsa_id": "GHSA-fghv-69vj-qj49",
+            "severity": "low",
+            "html_url": "https://github.com/advisories/GHSA-fghv-69vj-qj49"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-codec@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-558v-64gr-wgg4",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-558v-64gr-wgg4"
+          },
+          {
+            "ghsa_id": "GHSA-mj4r-2hfc-f8p6",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-mj4r-2hfc-f8p6"
+          },
+          {
+            "ghsa_id": "GHSA-3p8m-j85q-pgmj",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-3p8m-j85q-pgmj"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-common@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-389x-839f-4rhx",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-389x-839f-4rhx"
+          },
+          {
+            "ghsa_id": "GHSA-xq3w-v528-46rv",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-xq3w-v528-46rv"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-handler-proxy@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-45q3-82m4-75jr",
+            "severity": "low",
+            "html_url": "https://github.com/advisories/GHSA-45q3-82m4-75jr"
+          }
+        ]
+      },
+      {
+        "coordinate": "io.netty:netty-handler@4.1.110.Final",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-c4c3-7fpv-j4q5",
+            "severity": "critical",
+            "html_url": "https://github.com/advisories/GHSA-c4c3-7fpv-j4q5"
+          },
+          {
+            "ghsa_id": "GHSA-fccg-mwvh-qqg4",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-fccg-mwvh-qqg4"
+          },
+          {
+            "ghsa_id": "GHSA-c653-97m9-rcg9",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-c653-97m9-rcg9"
+          },
+          {
+            "ghsa_id": "GHSA-x4gw-5cx5-pgmh",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-x4gw-5cx5-pgmh"
+          },
+          {
+            "ghsa_id": "GHSA-3qp7-7mw8-wx86",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-3qp7-7mw8-wx86"
+          },
+          {
+            "ghsa_id": "GHSA-4g8c-wm8x-jfhw",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-4g8c-wm8x-jfhw"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.apache.commons:commons-compress@1.21",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-4265-ccf5-phj5",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-4265-ccf5-phj5"
+          },
+          {
+            "ghsa_id": "GHSA-4g9r-vxhx-9pgx",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-4g9r-vxhx-9pgx"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.bitbucket.b_c:jose4j@0.9.5",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-3677-xxcr-wjqv",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-3677-xxcr-wjqv"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.bouncycastle:bcpkix-jdk18on@1.79",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-wg6q-6289-32hp",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-wg6q-6289-32hp"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.bouncycastle:bcprov-jdk18on@1.79",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-qp49-qgx5-5m26",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-qp49-qgx5-5m26"
+          },
+          {
+            "ghsa_id": "GHSA-9pwp-9qqc-pr26",
+            "severity": "critical",
+            "html_url": "https://github.com/advisories/GHSA-9pwp-9qqc-pr26"
+          },
+          {
+            "ghsa_id": "GHSA-p93r-85wp-75v3",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-p93r-85wp-75v3"
+          },
+          {
+            "ghsa_id": "GHSA-c3fc-8qff-9hwx",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-c3fc-8qff-9hwx"
+          },
+          {
+            "ghsa_id": "GHSA-574f-3g2m-x479",
+            "severity": "critical",
+            "html_url": "https://github.com/advisories/GHSA-574f-3g2m-x479"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.jdom:jdom2@2.0.6",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-2363-cqg2-863c",
+            "severity": "high",
+            "html_url": "https://github.com/advisories/GHSA-2363-cqg2-863c"
+          }
+        ]
+      },
+      {
+        "coordinate": "org.jetbrains.kotlin:kotlin-gradle-plugin@2.2.20",
+        "scopes": [
+          "build-tools"
+        ],
+        "advisories": [
+          {
+            "ghsa_id": "GHSA-r937-wjx7-w2jp",
+            "severity": "medium",
+            "html_url": "https://github.com/advisories/GHSA-r937-wjx7-w2jp"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -12,6 +12,7 @@ import android.os.Parcel
 import android.os.ResultReceiver
 import android.util.Log
 import com.madclock.ipc.AudioContract as C
+import com.madclock.ipc.InputChecks
 import java.util.concurrent.atomic.AtomicBoolean
 
 object AudioBridge {
@@ -29,7 +30,8 @@ object AudioBridge {
         }.getOrElse { Log.w("MadClock", "Audio setup unavailable", it); false }
     }
     fun start(context: Context, active: ActiveAlarm): Boolean {
-        if (!trusted(context)) return false
+        if (!trusted(context) || !InputChecks.session(active.id) || !InputChecks.song(active.songUri) ||
+            active.volumePercent !in 1..100) return false
         return try {
             val uri = Uri.parse(active.songUri)
             context.grantUriPermission(C.PACKAGE, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -39,7 +41,7 @@ object AudioBridge {
             Log.i("MadClock", "Audio command sent: session=${active.id}")
             true
         } catch (e: RuntimeException) {
-            Log.e("MadClock", "Audio APK start rejected; no main-app audio fallback", e); false
+            Log.e("MadClock", "Audio APK start rejected: ${e.javaClass.simpleName}"); false
         }
     }
     private fun stop(context: Context, id: String, done: (Boolean) -> Unit) {
@@ -69,7 +71,7 @@ object AudioBridge {
                 .setComponent(ComponentName(C.PACKAGE, C.SERVICE)).putExtra(C.SESSION, id).putExtra(C.ACK, remoteAck))
         } catch (e: RuntimeException) {
             handler.removeCallbacks(timeout)
-            Log.e("MadClock", "Audio APK stop rejected; pending stop retained", e)
+            Log.e("MadClock", "Audio APK stop rejected; pending stop retained: ${e.javaClass.simpleName}")
             finish(false)
         }
     }
@@ -77,8 +79,16 @@ object AudioBridge {
         val store = AlarmStore(context)
         val id = store.pendingAudioStop
         if (id == null) { done(true); return }
+        val source = store.pendingAudioStopUri
         stop(context, id) { ok ->
-            if (ok) store.acknowledgeStop(id)
+            if (ok && store.pendingAudioStop == id) {
+                // Wait for durable STOP acknowledgement before revoking the helper's read grant.
+                // A duplicate late ACK must not revoke a later session's grant to the same song.
+                source?.let { uri -> runCatching {
+                    context.revokeUriPermission(C.PACKAGE, Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }.onFailure { Log.w("MadClock", "Audio URI grant cleanup unavailable") } }
+                store.acknowledgeStop(id)
+            }
             done(ok)
         }
     }

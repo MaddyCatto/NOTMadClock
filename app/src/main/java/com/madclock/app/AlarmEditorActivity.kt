@@ -15,6 +15,7 @@ import android.widget.TextView
 import android.widget.TimePicker
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import com.madclock.ipc.InputChecks
 
 class AlarmEditorActivity : ComponentActivity() {
     private lateinit var draft: AlarmRecord
@@ -25,6 +26,7 @@ class AlarmEditorActivity : ComponentActivity() {
     private lateinit var volume: SeekBar
     private val chooseSong = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching {
+            require(InputChecks.song(uri.toString()))
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
                 if (it.moveToFirst()) it.getString(0) else null

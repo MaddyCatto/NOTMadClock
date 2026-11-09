@@ -1,5 +1,6 @@
 """Verify the actual paired APKs, not just source manifests. Requires Android SDK tools."""
 import os
+import argparse
 from pathlib import Path
 import re
 import shutil
@@ -12,8 +13,11 @@ SDK = Path(os.environ.get("ANDROID_HOME") or os.environ["ANDROID_SDK_ROOT"])
 ANALYZER = shutil.which("apkanalyzer") or str(next(SDK.glob("cmdline-tools/*/bin/apkanalyzer")))
 SIGNER = str(SDK / "build-tools/36.0.0/apksigner")
 NS = "{http://schemas.android.com/apk/res/android}"
-MAIN = ROOT / "app/build/outputs/apk/debug/app-debug.apk"
-AUDIO = ROOT / "audio/build/outputs/apk/debug/audio-debug.apk"
+parser = argparse.ArgumentParser()
+parser.add_argument("--variant", choices=("debug", "release"), default="debug")
+variant = parser.parse_args().variant
+MAIN = ROOT / f"app/build/outputs/apk/{variant}/app-{variant}.apk"
+AUDIO = ROOT / f"audio/build/outputs/apk/{variant}/audio-{variant}.apk"
 
 
 def manifest(apk):
@@ -36,6 +40,24 @@ assert main.get(NS + "sharedUserId") is None and audio.get(NS + "sharedUserId") 
 assert fingerprint(MAIN) == fingerprint(AUDIO), "Both APKs must be installed from one same-signer pair"
 for root in (main, audio):
     assert "android.permission.INTERNET" not in permissions(root)
+    assert "android.permission.ACCESS_NETWORK_STATE" not in permissions(root)
+    application = root.find("application")
+    assert application.get(NS + "allowBackup") == "false"
+    assert application.get(NS + "dataExtractionRules") is not None
+    assert application.get(NS + "fullBackupContent") is not None
+    assert (application.get(NS + "debuggable") == "true") == (variant == "debug")
+    for provider in application.findall("provider"):
+        assert provider.get(NS + "exported") == "false", provider.attrib
+    for component in application:
+        if component.tag not in {"activity", "activity-alias", "service", "receiver", "provider"}:
+            continue
+        if component.get(NS + "exported") != "true":
+            continue
+        name = component.get(NS + "name")
+        if root is main and name == "com.madclock.app.MainActivity":
+            continue  # Launcher only; does not accept alarm commands from Intent extras.
+        allowed = {"com.madclock.audio.permission.CONTROL_AUDIO", "android.permission.DUMP"}
+        assert component.get(NS + "permission") in allowed, component.attrib
 assert not permissions(main).intersection({"android.permission.WAKE_LOCK",
     "android.permission.POST_NOTIFICATIONS", "android.permission.USE_FULL_SCREEN_INTENT",
     "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"})

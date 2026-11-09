@@ -9,8 +9,8 @@ android {
         applicationId = "com.madclock.audio"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.1"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -20,7 +20,16 @@ android {
     sourceSets["main"].java.srcDir("../shared/src/main/java")
     testOptions { unitTests.isIncludeAndroidResources = true }
 }
+apply(from = rootProject.file("gradle/release-signing.gradle"))
 dependencies {
+    constraints {
+        testImplementation("com.google.guava:guava:33.7.2-jre") {
+            because("Fix GHSA-xxph-c9ww-hj94 in the test runtime only")
+        }
+        testImplementation("org.bouncycastle:bcprov-jdk18on:1.85") {
+            because("Fix published Bouncy Castle advisories in the test runtime only")
+        }
+    }
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.16.1")
 }

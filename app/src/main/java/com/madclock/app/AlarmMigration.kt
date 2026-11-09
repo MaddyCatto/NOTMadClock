@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.util.Log
+import com.madclock.ipc.InputChecks
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -17,10 +19,10 @@ object AlarmMigration {
         if (prefs.contains("alarms_v3")) return
         val manager = context.getSystemService(AlarmManager::class.java)
         val snapshots = listOf("active_alarm", "plan_DAILY", "plan_TEST").mapNotNull {
-            prefs.getString(it, null)?.let(::JSONObject)
+            prefs.getString(it, null)?.let(::readSnapshot)
         }
         snapshots.forEach { j ->
-            val id = j.getString("id")
+            val id = j.optString("id").takeIf(InputChecks::session) ?: return@forEach
             val kind = j.optString("kind", "TEST")
             repeat(20) { slot ->
                 cancel(context, manager, 2200 + slot, "com.madclock.app.SIGNAL_EVENT_V2",
@@ -37,17 +39,19 @@ object AlarmMigration {
         }
         val hasOld = listOf("hour", "minute", "enabled", "song_uri").any(prefs::contains) || snapshots.isNotEmpty()
         val record = if (hasOld) AlarmRecord(
-            id = UUID.randomUUID().toString(), hour = prefs.getInt("hour", 7), minute = prefs.getInt("minute", 0),
-            enabled = prefs.getBoolean("enabled", false) && !prefs.getString("song_uri", null).isNullOrBlank() &&
-                !prefs.getString("barcode", null).isNullOrBlank(),
+            id = UUID.randomUUID().toString(), hour = prefs.getInt("hour", 7).coerceIn(0, 23), minute = prefs.getInt("minute", 0).coerceIn(0, 59),
+            enabled = prefs.getBoolean("enabled", false) && InputChecks.song(prefs.getString("song_uri", null)) &&
+                InputChecks.barcode(prefs.getString("barcode", null)),
             songUri = prefs.getString("song_uri", null), songName = prefs.getString("song_name", null),
             volumePercent = prefs.getInt("volume_percent", 80).coerceIn(1, 100)) else null
         val edit = prefs.edit().putString("alarms_v3", JSONArray().apply { record?.let { put(AlarmStore.encodeRecord(it)) } }.toString())
             .putBoolean("restore_v3", hasOld)
         prefs.getString("active_alarm", null)?.let { raw ->
-            val old = JSONObject(raw)
+            val old = readSnapshot(raw) ?: return@let
             val source = old.optString("song")
-            if (source.isNotBlank()) edit.putString("active_session_v3", JSONObject().apply {
+            if (InputChecks.song(source) && InputChecks.session(old.optString("id")) &&
+                InputChecks.barcode(old.optString("barcode")) && old.optInt("volume") in 1..100)
+                edit.putString("active_session_v3", JSONObject().apply {
                 put("id", old.getString("id")); put("alarmId", record?.id ?: ""); put("song", source)
                 put("barcode", old.getString("barcode")); put("volume", old.getInt("volume"))
                 put("startedAtMs", old.optLong("startAtMs", System.currentTimeMillis()))
@@ -56,6 +60,9 @@ object AlarmMigration {
         listOf("hour", "minute", "enabled", "song_uri", "song_name", "volume_percent", "signal_mode",
             "active_alarm", "plan_DAILY", "plan_TEST", "architecture_v2").forEach(edit::remove)
         check(edit.commit())
+    }
+    private fun readSnapshot(raw: String): JSONObject? = runCatching { JSONObject(raw) }.getOrElse {
+        Log.w("MadClock", "Invalid legacy alarm snapshot"); null
     }
     private fun cancel(c: Context, manager: AlarmManager, code: Int, action: String, data: Uri?) {
         PendingIntent.getBroadcast(c, code, Intent(c, AlarmReceiver::class.java).setAction(action).setData(data),

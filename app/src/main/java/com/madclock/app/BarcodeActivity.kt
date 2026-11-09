@@ -20,6 +20,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import com.madclock.ipc.InputChecks
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -96,6 +97,11 @@ class BarcodeActivity : ComponentActivity() {
 
     private fun handleScan(value: String) {
         if (isFinishing || isDestroyed) return
+        if (!InputChecks.barcode(value)) {
+            status.text = "Код пуст или слишком длинный. Попробуй другой."
+            locked.set(false)
+            return
+        }
         if (intent.getStringExtra(EXTRA_MODE) == MODE_REGISTER && AlarmStore(this).activeAlarm == null) {
             AlertDialog.Builder(this)
                 .setTitle("Сохранить этот код?")

@@ -1,0 +1,23 @@
+// Applied by both modules. No default key and no private signing material in the repository.
+def signingEnv = ['MADCLOCK_KEYSTORE_PATH', 'MADCLOCK_KEYSTORE_PASSWORD',
+                  'MADCLOCK_KEY_ALIAS', 'MADCLOCK_KEY_PASSWORD'].collectEntries { key ->
+    [(key): providers.environmentVariable(key).orNull]
+}
+def complete = signingEnv.values().every { it != null && !it.isEmpty() }
+if (signingEnv.values().any { it != null } && !complete) {
+    throw new GradleException('Release signing configuration is incomplete; supply all four MADCLOCK signing environment variables.')
+}
+if (complete) {
+    android.signingConfigs.create('madclockRelease') {
+        storeFile = rootProject.file(signingEnv.MADCLOCK_KEYSTORE_PATH)
+        storePassword = signingEnv.MADCLOCK_KEYSTORE_PASSWORD
+        keyAlias = signingEnv.MADCLOCK_KEY_ALIAS
+        keyPassword = signingEnv.MADCLOCK_KEY_PASSWORD
+    }
+    android.buildTypes.release.signingConfig = android.signingConfigs.madclockRelease
+}
+tasks.matching { it.name in ['assembleRelease', 'bundleRelease'] }.configureEach {
+    doFirst {
+        if (!complete) throw new GradleException('Release signing is required. See docs/security.md; debug signing is unchanged.')
+    }
+}

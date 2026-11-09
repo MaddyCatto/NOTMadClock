@@ -5,7 +5,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <queries><package android:name="com.madclock.app" /></queries>
-    <application android:label="MadClock Audio" android:icon="@drawable/ic_alarm" android:allowBackup="false">
+    <application android:label="MadClock Audio" android:icon="@drawable/ic_alarm" android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules" android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- No MAIN/LAUNCHER activity, shared UID, or task used for playback. -->
         <activity android:name=".SetupActivity" android:exported="true"
             android:permission="com.madclock.audio.permission.CONTROL_AUDIO"

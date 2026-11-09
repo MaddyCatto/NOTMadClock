@@ -11,8 +11,8 @@ android {
         applicationId = "com.madclock.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.1"
     }
 
     buildTypes {
@@ -37,7 +37,17 @@ android {
     sourceSets["main"].java.srcDir("../shared/src/main/java")
 }
 
+apply(from = rootProject.file("gradle/release-signing.gradle"))
+
 dependencies {
+    constraints {
+        implementation("com.google.guava:guava:33.7.2-android") {
+            because("Fix GHSA-xxph-c9ww-hj94 in the transitive Android Guava dependency")
+        }
+        testImplementation("org.bouncycastle:bcprov-jdk18on:1.85") {
+            because("Fix published Bouncy Castle advisories in Robolectric's test-only dependency")
+        }
+    }
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.camera:camera-core:1.6.2")
