@@ -18,7 +18,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
-import android.os.ResultReceiver
 import android.util.Log
 import com.madclock.ipc.AudioContract as C
 import com.madclock.ipc.InputChecks
@@ -30,6 +29,8 @@ import kotlin.math.roundToInt
 class AudioService : Service() {
     private lateinit var store: AudioStore
     private lateinit var audio: AudioManager
+    private lateinit var sleep: SleepPlayback
+    private var latestStartId = 0
     private val handler = Handler(Looper.getMainLooper())
     private val imports = Executors.newSingleThreadExecutor()
     private var player: MediaPlayer? = null
@@ -59,85 +60,104 @@ class AudioService : Service() {
         store = AudioStore(this)
         SongImport.cleanOrphans(filesDir, store.active?.id)
         audio = getSystemService(AudioManager::class.java)
+        sleep = SleepPlayback(this) { handler.post { stopIfIdle() } }
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CHANNEL, "MadClock Audio — воспроизведение", NotificationManager.IMPORTANCE_LOW)
                 .apply { setSound(null, null) })
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i("MadClockAudio", "Service command received; sticky=${intent == null}")
-        promote() // Including cold STOP commands sent with startForegroundService.
+        latestStartId = startId
+        // The signature permission is checked by Android before delivery. The two command
+        // families then have independent identities, validation and stop paths.
         val action = intent?.action
-        // Android enforces the service's signature permission before delivery. Validate data too.
-        val id = try { intent?.getStringExtra(C.SESSION) } catch (_: RuntimeException) { null }
-        if (intent != null && !InputChecks.session(id)) return stopIdle(startId)
-        if (intent != null && action == C.STOP) {
-            val active = store.active
-            val ok = id != null && store.finish(id)
-            if (ok && active != null && active.id == id) {
-                releasePlayback()
-                restoreVolume(active)
-                cache(active.id).delete()
-            }
-            ack(intent, ok)
-            Log.i("MadClockAudio", "Stop acknowledged=$ok session=$id")
-            if (store.active == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
-            return if (store.active == null) START_NOT_STICKY else START_STICKY
+        val sleepCommand = action == C.SLEEP_PLAY || action == C.SLEEP_UPDATE || action == C.SLEEP_STOP
+        val acceptedSleep = sleepCommand && store.active == null && sleep.command(requireNotNull(intent))
+        val startAlarm = intent == null || (action == C.START && acceptAlarmStart(intent))
+        if (action == C.STOP) stopAlarm(intent)
+
+        promote() // Even cold or rejected starts must satisfy startForegroundService.
+        if (sleepCommand) reply(intent, acceptedSleep, SleepPlayback.status(this).toBundle())
+        if (startAlarm) ensureAlarmPlaying()
+        stopIfIdle()
+        return if (store.active != null) START_STICKY else START_NOT_STICKY
+    }
+
+    private fun acceptAlarmStart(intent: Intent): Boolean {
+        val id = sessionId(intent) ?: return false
+        val volume = runCatching { intent.getIntExtra(C.VOLUME, -1) }.getOrDefault(-1)
+        val useDefault = runCatching { intent.getBooleanExtra(C.DEFAULT_ALARM, false) }.getOrDefault(false)
+        val source = intent.dataString
+        if (volume !in 1..100 || store.completed(id) ||
+            (if (useDefault) source != null else !InputChecks.song(source))) return false
+        // A delayed/conflicting START cannot replace a sounding alarm. Same-session START
+        // is idempotent and can also restore playback after a process restart.
+        val active = store.active
+        if (active != null) return active.id == id
+        if (!store.begin(AudioSession(id, source, volume, audio.getStreamVolume(AudioManager.STREAM_ALARM)))) return false
+        sleep.alarmChanged()
+        return true
+    }
+
+    private fun stopAlarm(intent: Intent) {
+        val id = sessionId(intent) ?: return
+        val active = store.active
+        val ok = store.finish(id)
+        if (ok && active?.id == id) {
+            releasePlayback()
+            restoreVolume(active)
+            cache(id).delete()
+            sleep.alarmChanged()
         }
-        if (intent != null && action != C.START) return stopIdle(startId)
-        if (intent != null) {
-            val volume = try { intent.getIntExtra(C.VOLUME, -1) } catch (_: RuntimeException) { -1 }
-            if (id == null || !InputChecks.song(intent.dataString) || volume !in 1..100 ||
-                store.completed(id)) return stopIdle(startId)
-            val old = store.active
-            // Main never starts a different occurrence until STOP was acknowledged. A delayed
-            // or conflicting START must not interrupt the current alarm, even from a trusted peer.
-            if (old != null && old.id != id) {
-                Log.w("MadClockAudio", "Conflicting START ignored while a session is active")
-                return START_STICKY
-            }
-            if (old?.id != id) {
-                val new = AudioSession(id, intent.data.toString(), volume,
-                    audio.getStreamVolume(AudioManager.STREAM_ALARM))
-                if (!store.begin(new)) return stopIdle(startId)
-            }
+        reply(intent, ok)
+        Log.i("MadClockAudio", "Stop acknowledged=$ok session=$id")
+    }
+
+    private fun sessionId(intent: Intent) =
+        runCatching { intent.getStringExtra(C.SESSION) }.getOrNull()?.takeIf(InputChecks::session)
+
+    private fun ensureAlarmPlaying() {
+        val active = store.active ?: return
+        if (player != null || loading == active.id) return
+        val source = active.source
+        if (source == null) {
+            play(bundled(R.raw.default_alarm), active.id)
+            return
         }
-        val active = store.active ?: return stopIdle(startId)
-        if (player != null || loading == active.id) return START_STICKY
         val song = cache(active.id)
         if (song.exists()) {
             if (song.length() in 1..SongImport.MAX_BYTES) play(Uri.fromFile(song), active.id)
             else { song.delete(); playFallback(active.id) }
-        } else importSong(active)
-        return START_STICKY
+        } else importSong(active.id, source)
     }
-    private fun stopIdle(startId: Int): Int {
-        if (store.active == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
-        return if (store.active == null) START_NOT_STICKY else START_STICKY
+
+    private fun stopIfIdle() {
+        if (store.active == null && !sleep.running && stopSelfResult(latestStartId))
+            stopForeground(STOP_FOREGROUND_REMOVE)
     }
     private fun cache(id: String) = File(filesDir, "song-$id.audio")
-    private fun importSong(active: AudioSession) {
-        loading = active.id
+    private fun importSong(id: String, source: String) {
+        loading = id
         val generation = ++epoch
         imports.execute {
-            val temp = File(filesDir, "import-${active.id}-$generation.tmp")
+            val temp = File(filesDir, "import-${id}-$generation.tmp")
             val copied = runCatching {
-                contentResolver.openInputStream(Uri.parse(active.source))!!.use { input ->
+                contentResolver.openInputStream(Uri.parse(source))!!.use { input ->
                     temp.outputStream().use { out -> SongImport.copy(input, out,
                         { Thread.currentThread().isInterrupted || epoch != generation }) }
                 }
-                check(temp.renameTo(cache(active.id)))
+                check(temp.renameTo(cache(id)))
             }
             temp.delete()
             handler.post {
-                if (destroyed || epoch != generation || store.active?.id != active.id) {
-                    if (store.active?.id != active.id) cache(active.id).delete()
+                if (destroyed || epoch != generation || store.active?.id != id) {
+                    if (store.active?.id != id) cache(id).delete()
                     return@post
                 }
                 loading = null
-                if (copied.isSuccess) play(Uri.fromFile(cache(active.id)), active.id)
+                if (copied.isSuccess) play(Uri.fromFile(cache(id)), id)
                 else {
                     Log.w("MadClockAudio", "URI import failed; using bundled fallback")
-                    playFallback(active.id)
+                    playFallback(id)
                 }
             }
         }
@@ -163,37 +183,42 @@ class AudioService : Service() {
                     }.onFailure { playbackFailed(id, it) }
                 }
             }
-            setOnErrorListener { _, what, extra ->
-                playbackFailed(id, IllegalStateException("MediaPlayer $what/$extra")); true
+            setOnErrorListener { failed, what, extra ->
+                if (failed === player) playbackFailed(id, IllegalStateException("MediaPlayer $what/$extra"))
+                true
             }
             try { setDataSource(this@AudioService, uri); prepareAsync() }
-            catch (e: Exception) { handler.post { playbackFailed(id, e) } }
+            catch (e: Exception) {
+                val failed = this
+                handler.post { if (failed === player) playbackFailed(id, e) }
+            }
         }
     }
     private fun playbackFailed(id: String, error: Throwable) {
         Log.e("MadClockAudio", "Playback failed: ${error.javaClass.simpleName}")
-        if (!fallback) handler.post { playFallback(id) } else stopSelf()
+        val failed = player
+        if (!fallback) handler.post { if (player === failed) playFallback(id) } else stopSelf()
     }
     private fun playFallback(id: String) {
         if (destroyed || store.active?.id != id) return
         fallback = true
-        play(Uri.parse("android.resource://$packageName/${R.raw.fallback_alarm}"), id)
+        play(bundled(R.raw.fallback_alarm), id)
     }
+    private fun bundled(resource: Int) = Uri.parse("android.resource://$packageName/$resource")
+
     private fun promote() {
         val show = PendingIntent.getActivity(this, 7,
             Intent().setComponent(android.content.ComponentName("com.madclock.app", "com.madclock.app.MainActivity"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val alarm = store.active != null
         val notification = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_alarm)
-            .setContentTitle("MadClock Audio").setContentText("Остановка — штрихкодом в MadClock")
-            .setOngoing(true).setContentIntent(show).setCategory(Notification.CATEGORY_ALARM).build()
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(if (alarm) R.string.notification_alarm else R.string.notification_sleep))
+            .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(show)
+            .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_TRANSPORT).build()
         if (Build.VERSION.SDK_INT >= 29) startForeground(711, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         else startForeground(711, notification)
-    }
-    @Suppress("DEPRECATION")
-    private fun ack(intent: Intent, ok: Boolean) {
-        try { intent.getParcelableExtra<ResultReceiver>(C.ACK)?.send(if (ok) C.OK else C.FAILED, null) }
-        catch (_: RuntimeException) { Log.w("MadClockAudio", "Invalid or unavailable stop acknowledgement") }
     }
     private fun restoreVolume(active: AudioSession) {
         runCatching { audio.setStreamVolume(AudioManager.STREAM_ALARM, active.originalVolume, 0) }
@@ -207,6 +232,7 @@ class AudioService : Service() {
     }
     override fun onDestroy() {
         destroyed = true
+        sleep.close()
         releasePlayback()
         imports.shutdownNow()
         // Keep the helper's own durable state for an Android-managed sticky restart, not a task watchdog.

@@ -17,18 +17,37 @@ import androidx.activity.ComponentActivity
 class MainActivity : ComponentActivity() {
     private lateinit var store: AlarmStore
     private var rendered = false
+    private lateinit var sleepPage: SleepPage
+    private var showSleep = false
+    private var resumed = false
     private val changes = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> render() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         UiSupport.decorate(this)
         store = AlarmStore(this)
+        sleepPage = SleepPage(this) { store.activeAlarm != null || store.pendingAudioStop != null }
+        findViewById<Button>(R.id.alarmTab).setOnClickListener { selectTab(false, remember = true) }
+        findViewById<Button>(R.id.sleepTab).setOnClickListener { selectTab(true, remember = true) }
+        selectTab(getPreferences(MODE_PRIVATE).getBoolean("show_sleep", false))
         findViewById<ImageButton>(R.id.moreMenu).setOnClickListener { openMenu(it) }
         findViewById<ImageButton>(R.id.addAlarm).setOnClickListener { add() }
         findViewById<Button>(R.id.addEmpty).setOnClickListener { add() }
         findViewById<Button>(R.id.scanActive).setOnClickListener { UiSupport.barcode(this, false) }
         render()
     }
+    private fun selectTab(sleep: Boolean, remember: Boolean = false) {
+        showSleep = sleep
+        findViewById<View>(R.id.alarmPage).visibility = if (sleep) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.sleepPage).visibility = if (sleep) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.alarmTab).isSelected = !sleep
+        findViewById<View>(R.id.sleepTab).isSelected = sleep
+        findViewById<View>(R.id.alarmTabIndicator).visibility = if (sleep) View.INVISIBLE else View.VISIBLE
+        findViewById<View>(R.id.sleepTabIndicator).visibility = if (sleep) View.VISIBLE else View.INVISIBLE
+        if (remember) getPreferences(MODE_PRIVATE).edit().putBoolean("show_sleep", sleep).apply()
+        if (sleep && resumed) sleepPage.show() else sleepPage.hide()
+    }
+
     private fun add() {
         if (store.alarms.size >= AlarmStore.MAX_ALARMS) { UiSupport.toast(this, getString(R.string.limit)); return }
         startActivity(Intent(this, AlarmEditorActivity::class.java))
@@ -57,8 +76,8 @@ class MainActivity : ComponentActivity() {
             toggle.setOnCheckedChangeListener { button, checked ->
                 if (!reverting) {
                     val latest = store.find(alarm.id)
-                    val ready = latest != null && (!checked || UiSupport.ready(this, latest))
-                    if (ready && latest != null) {
+                    val ready = latest != null && (!checked || UiSupport.ready(this))
+                    if (ready) {
                         if (!AlarmActions.save(this, latest.copy(enabled = checked))) {
                             reverting = true; button.isChecked = latest.enabled; reverting = false
                             UiSupport.toast(this, getString(R.string.save_failed))
@@ -79,6 +98,7 @@ class MainActivity : ComponentActivity() {
         findViewById<View>(R.id.activeBanner).visibility = if (active != null || pending) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.activeText).setText(if (active != null) R.string.alarm_sounding else R.string.stopping)
         findViewById<Button>(R.id.scanActive).visibility = if (active != null) View.VISIBLE else View.GONE
+        if (showSleep) sleepPage.showPlayback()
         if (rendered) scroll.post { scroll.scrollTo(0, position) }
         rendered = true
     }
@@ -105,18 +125,29 @@ class MainActivity : ComponentActivity() {
     }
     private fun testSound() {
         if (store.activeAlarm != null || store.pendingAudioStop != null) { UiSupport.toast(this, getString(R.string.active_first)); return }
-        val records = store.alarms.filter { !it.songUri.isNullOrBlank() }
+        val records = store.alarms
         if (records.isEmpty()) { UiSupport.toast(this, getString(R.string.test_needs_alarm)); return }
         AlertDialog.Builder(this).setTitle(R.string.choose_test)
-            .setItems(records.map { "${it.timeLabel()} — ${it.songName ?: getString(R.string.select_song)}" }.toTypedArray()) { _, index ->
+            .setItems(records.map { "${it.timeLabel()} — ${it.songName ?: getString(if (it.songUri == null) R.string.default_song else R.string.select_song)}" }.toTypedArray()) { _, index ->
                 val record = records[index]
-                if (UiSupport.ready(this, record, exact = false)) SignalController.test(this, record)
+                if (UiSupport.ready(this, exact = false)) SignalController.test(this, record)
             }.setNegativeButton(R.string.cancel, null).show()
     }
     override fun onStart() {
         super.onStart(); getSharedPreferences(AlarmStore.PREFS, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(changes)
     }
-    override fun onResume() { super.onResume(); SignalController.onVisibleLaunch(this); render() }
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        SignalController.onVisibleLaunch(this)
+        render()
+        if (showSleep) sleepPage.show()
+    }
+    override fun onPause() {
+        sleepPage.hide()
+        resumed = false
+        super.onPause()
+    }
     override fun onStop() {
         getSharedPreferences(AlarmStore.PREFS, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(changes); super.onStop()
     }

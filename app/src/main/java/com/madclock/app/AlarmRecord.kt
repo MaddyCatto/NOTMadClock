@@ -23,7 +23,7 @@ data class AlarmRecord(
 data class ActiveAlarm(
     val id: String,
     val alarmId: String?,
-    val songUri: String,
+    val songUri: String?,
     val barcode: String,
     val volumePercent: Int,
     val startedAtMs: Long

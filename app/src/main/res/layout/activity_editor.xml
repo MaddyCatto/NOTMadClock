@@ -10,10 +10,10 @@
     <Switch android:id="@+id/editorEnabled" android:layout_width="match_parent" android:layout_height="56dp" android:text="@string/enabled" android:textColor="@color/text_primary" android:thumb="@drawable/switch_thumb" android:track="@drawable/switch_track" android:showText="false" android:splitTrack="false" android:thumbTint="@null" android:trackTint="@null"/>
     <Button android:id="@+id/selectSong" style="@style/SecondaryButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="@string/select_song"/>
     <TextView android:id="@+id/songValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="10dp" android:paddingBottom="20dp" android:textColor="@color/text_secondary" android:textSize="14sp"/>
+    <Button android:id="@+id/defaultSong" style="@style/SecondaryButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginBottom="16dp" android:text="@string/default_song" android:visibility="gone"/>
     <TextView style="@style/FieldLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/volume_label"/>
     <SeekBar android:id="@+id/volume" android:layout_width="match_parent" android:layout_height="48dp" android:min="1" android:max="100"/>
     <TextView android:id="@+id/volumeValue" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_primary" android:textSize="16sp"/>
-    <Button android:id="@+id/saveAlarm" style="@style/PrimaryButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="24dp" android:text="@string/save"/>
     <Button android:id="@+id/deleteAlarm" style="@style/SecondaryButton" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="12dp" android:text="@string/delete_alarm"/>
    </LinearLayout>
   </ScrollView>

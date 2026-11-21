@@ -29,8 +29,7 @@ object SignalController {
     private fun start(context: Context, alarm: AlarmRecord, now: Long, test: Boolean = false): Boolean {
         val store = AlarmStore(context)
         val code = store.barcode?.takeIf { it.isNotBlank() } ?: return false
-        val song = alarm.songUri?.takeIf { it.isNotBlank() } ?: return false
-        val active = ActiveAlarm(UUID.randomUUID().toString(), if (test) null else alarm.id, song, code, alarm.volumePercent, now)
+        val active = ActiveAlarm(UUID.randomUUID().toString(), if (test) null else alarm.id, alarm.songUri, code, alarm.volumePercent, now)
         if (!store.activate(active)) return false
         if (!AudioBridge.start(context, active)) Log.w("MadClock", "Audio start unavailable; active occurrence retained")
         return true

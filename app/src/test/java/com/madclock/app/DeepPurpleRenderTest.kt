@@ -8,6 +8,11 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.view.View
+import android.widget.Button
+import com.madclock.ipc.AudioContract as C
+import com.madclock.ipc.SleepSound
+import com.madclock.ipc.SleepStatus
+import org.robolectric.Shadows.shadowOf
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,6 +76,7 @@ class DeepPurpleRenderTest {
     @Test fun renderMainInPortraitAndLandscapeAndEditor() {
         val app = RuntimeEnvironment.getApplication()
         app.getSharedPreferences(AlarmStore.PREFS, Context.MODE_PRIVATE).edit().clear().commit()
+        app.getSharedPreferences("MainActivity", Context.MODE_PRIVATE).edit().clear().commit()
         val store = AlarmStore(app)
         store.put(AlarmRecord(hour = 7, minute = 0, enabled = true, songUri = "content://song/1"))
         store.put(AlarmRecord(hour = 9, minute = 30, repeat = AlarmRepeat.ONCE, enabled = true, songUri = "content://song/2"))
@@ -78,6 +84,16 @@ class DeepPurpleRenderTest {
         val main = Robolectric.buildActivity(MainActivity::class.java).setup()
         render(main.get().findViewById(R.id.appRoot), 400, 800, "main-portrait")
         render(main.get().findViewById(R.id.appRoot), 1000, 600, "main-landscape")
+        AlarmSchedulesTest.installHelper(app)
+        app.getSharedPreferences("sleep_settings", Context.MODE_PRIVATE).edit().putInt("timer", 30).commit()
+        // Recreate to render the independently reported Audio state after an app restart.
+        main.get().findViewById<Button>(R.id.sleepTab).performClick()
+        main.recreate()
+        val query = shadowOf(app).broadcastIntents.last { it.action == C.SLEEP_STATUS }
+        AlarmSchedulesTest.acknowledge(query,
+            SleepStatus("render-playing", SleepStatus.Phase.PLAYING, SleepSound.WHITE).toBundle())
+        render(main.get().findViewById(R.id.appRoot), 400, 800, "white-noise-portrait")
+        render(main.get().findViewById(R.id.appRoot), 1000, 600, "white-noise-landscape")
         main.pause().stop().destroy()
         val editor = Robolectric.buildActivity(AlarmEditorActivity::class.java).setup()
         render(editor.get().findViewById(R.id.appRoot), 400, 800, "editor-portrait")

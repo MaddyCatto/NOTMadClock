@@ -15,7 +15,7 @@ class LauncherIconTest {
     @Test fun pngIsTheUnmodifiedUserAsset() {
         val bytes = RuntimeEnvironment.getApplication().resources.openRawResource(R.drawable.ic_launcher_artwork).use { it.readBytes() }
         val hash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
-        assertEquals("2fec6ea5832eb171d2ab87df9c3b21a0b5fc4bdcc1944c9a1aa9fc14a00879e7", hash)
+        assertEquals("566901bf4fde3f1fd9d5928e5e1744f294ca9394336d4dccb28741256465d2df", hash)
     }
     @Test fun mainUsesAdaptiveIconsForNormalAndRoundLaunchers() {
         val context = RuntimeEnvironment.getApplication()

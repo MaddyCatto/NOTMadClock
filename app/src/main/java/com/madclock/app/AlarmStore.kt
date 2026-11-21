@@ -44,7 +44,7 @@ class AlarmStore(context: Context) {
         runCatching {
             val j = JSONObject(raw)
             ActiveAlarm(j.getString("id"), j.optString("alarmId").takeIf { it.isNotEmpty() },
-                j.getString("song"), j.getString("barcode"), j.getInt("volume"), j.getLong("startedAtMs"))
+                j.getString("song").ifEmpty { null }, j.getString("barcode"), j.getInt("volume"), j.getLong("startedAtMs"))
                 .also { require(validActive(it)) }
         }.getOrElse { Log.w("MadClock", "Invalid saved active session"); null }
     }
@@ -53,7 +53,7 @@ class AlarmStore(context: Context) {
     fun activate(active: ActiveAlarm): Boolean {
         if (!validActive(active) || activeAlarm != null || pendingAudioStop != null) return false
         return prefs.edit().putString("active_session_v3", JSONObject().apply {
-            put("id", active.id); put("alarmId", active.alarmId ?: ""); put("song", active.songUri)
+            put("id", active.id); put("alarmId", active.alarmId ?: ""); put("song", active.songUri.orEmpty())
             put("barcode", active.barcode); put("volume", active.volumePercent); put("startedAtMs", active.startedAtMs)
         }.toString()).commit()
     }
@@ -74,7 +74,7 @@ class AlarmStore(context: Context) {
         private fun validRecord(a: AlarmRecord) = InputChecks.session(a.id) && a.hour in 0..23 && a.minute in 0..59 &&
             a.volumePercent in 1..100 && (a.songUri == null || InputChecks.song(a.songUri)) &&
             (a.generation == null || InputChecks.session(a.generation)) && (a.nextAtMs == null || a.nextAtMs > 0)
-        private fun validActive(a: ActiveAlarm) = InputChecks.session(a.id) && InputChecks.song(a.songUri) &&
+        private fun validActive(a: ActiveAlarm) = InputChecks.session(a.id) && (a.songUri == null || InputChecks.song(a.songUri)) &&
             InputChecks.barcode(a.barcode) && a.volumePercent in 1..100 &&
             (a.alarmId == null || InputChecks.session(a.alarmId))
         internal fun encodeRecord(a: AlarmRecord) = JSONObject().apply {

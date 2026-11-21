@@ -30,8 +30,7 @@ object UiSupport {
     fun toast(activity: Activity, text: String) = Toast.makeText(activity, text, Toast.LENGTH_LONG).show()
     fun barcode(activity: Activity, register: Boolean) = activity.startActivity(Intent(activity, BarcodeActivity::class.java)
         .putExtra(BarcodeActivity.EXTRA_MODE, if (register) BarcodeActivity.MODE_REGISTER else BarcodeActivity.MODE_STOP))
-    fun ready(activity: Activity, record: AlarmRecord, exact: Boolean = true): Boolean {
-        if (record.songUri.isNullOrBlank()) { toast(activity, "Выберите локальную песню"); return false }
+    fun ready(activity: Activity, exact: Boolean = true): Boolean {
         if (AlarmStore(activity).barcode.isNullOrBlank()) {
             AlertDialog.Builder(activity).setTitle(R.string.register_barcode)
                 .setMessage("Один зарегистрированный штрихкод нужен для выключения всех будильников.")
@@ -39,16 +38,20 @@ object UiSupport {
                 .setNegativeButton(R.string.cancel, null).show()
             return false
         }
+        if (!audioReady(activity)) return false
+        if (exact && !AlarmScheduler.hasExactAlarmAccess(activity)) {
+            activity.startActivity(Intent(activity, PermissionsActivity::class.java))
+            toast(activity, "Разрешите точные будильники"); return false
+        }
+        return true
+    }
+    fun audioReady(activity: Activity): Boolean {
         if (!AudioBridge.trusted(activity)) { toast(activity, "Установите MadClock Audio из того же комплекта APK"); return false }
         if (Build.VERSION.SDK_INT >= 33 && activity.packageManager.checkPermission(Manifest.permission.POST_NOTIFICATIONS, C.PACKAGE)
             != PackageManager.PERMISSION_GRANTED) {
             AudioBridge.openSetup(activity)
             toast(activity, "Разрешите уведомления MadClock Audio и повторите действие")
             return false
-        }
-        if (exact && !AlarmScheduler.hasExactAlarmAccess(activity)) {
-            activity.startActivity(Intent(activity, PermissionsActivity::class.java))
-            toast(activity, "Разрешите точные будильники"); return false
         }
         return true
     }

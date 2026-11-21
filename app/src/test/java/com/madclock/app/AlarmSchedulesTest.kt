@@ -97,6 +97,36 @@ class AlarmSchedulesTest {
         assertTrue(command.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
         assertEquals(C.PACKAGE, command.component!!.packageName)
     }
+    @Test fun defaultAlarmStartsWithoutAGrantAndUsesSameBarcodeStop() {
+        val alarm = add(AlarmRecord(volumePercent = 45))
+        fire(alarm)
+        val active = AlarmStore(context).activeAlarm!!
+        assertNull(active.songUri)
+        val start = nextService()!!
+        assertEquals(C.START, start.action)
+        assertTrue(start.getBooleanExtra(C.DEFAULT_ALARM, false))
+        assertNull(start.data)
+        assertEquals(0, start.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        assertEquals(45, start.getIntExtra(C.VOLUME, 0))
+        assertFalse(SignalController.stopAfterScan(context, active.id, "wrong-code"))
+        assertTrue(SignalController.stopAfterScan(context, active.id, "common-code"))
+        assertNull(store.pendingAudioStopUri)
+        acknowledge(nextService()!!)
+        assertNull(store.pendingAudioStop)
+    }
+
+    @Test fun updatesThatDoNotMoveTimeKeepThePendingEventIdentity() {
+        val one = add(); val two = add(record(1))
+        assertTrue(AlarmActions.save(context, one.copy(repeat = AlarmRepeat.ONCE, volumePercent = 50, songUri = null)))
+        assertEquals(one.generation, store.find(one.id)!!.generation)
+        assertEquals(one.nextAtMs, store.find(one.id)!!.nextAtMs)
+        assertEquals(two, store.find(two.id))
+        assertEquals(2, alarms().scheduledAlarms.size)
+        fire(one)
+        assertFalse(store.find(one.id)!!.enabled)
+        assertEquals(50, nextService()!!.getIntExtra(C.VOLUME, 0))
+    }
+
     @Test fun dailyOccurrencesHaveFreshSessionIdsAndFutureScheduleSurvivesBarcodeStop() {
         val first = add()
         fire(first)
@@ -278,11 +308,11 @@ class AlarmSchedulesTest {
             })
         }
         @Suppress("DEPRECATION")
-        fun acknowledge(intent: Intent) {
+        fun acknowledge(intent: Intent, body: Bundle? = null) {
             val receiver = intent.getParcelableExtra<ResultReceiver>(C.ACK)!!
             assertEquals(ResultReceiver::class.java, receiver.javaClass)
             Shadow.directlyOn<Any?, ResultReceiver>(receiver, ResultReceiver::class.java, "send",
-                ClassParameter.from(Int::class.javaPrimitiveType!!, C.OK), ClassParameter.from(Bundle::class.java, null))
+                ClassParameter.from(Int::class.javaPrimitiveType!!, C.OK), ClassParameter.from(Bundle::class.java, body))
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
         }
     }

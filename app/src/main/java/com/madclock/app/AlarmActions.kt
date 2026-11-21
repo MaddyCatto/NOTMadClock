@@ -7,6 +7,12 @@ object AlarmActions {
     fun save(context: Context, input: AlarmRecord, now: Long = System.currentTimeMillis()): Boolean {
         val store = AlarmStore(context)
         val old = store.find(input.id)
+        // The time and enabled state determine the next occurrence. Its receiver reads
+        // sound, volume and repeat mode from the latest record when it fires.
+        if (old?.enabled == true && input.enabled && old.hour == input.hour && old.minute == input.minute &&
+            old.nextAtMs != null && old.generation != null) {
+            return store.put(input.copy(nextAtMs = old.nextAtMs, generation = old.generation))
+        }
         val next = if (input.enabled) AlarmScheduler.prepared(input, AlarmScheduler.nextTime(input, now))
             else input.copy(nextAtMs = null, generation = null)
         if (!store.put(next)) return false

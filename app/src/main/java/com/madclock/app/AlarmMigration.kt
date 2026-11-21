@@ -38,11 +38,12 @@ object AlarmMigration {
             cancelAll(); deleteNotificationChannel("madclock_system_alarm_v1")
         }
         val hasOld = listOf("hour", "minute", "enabled", "song_uri").any(prefs::contains) || snapshots.isNotEmpty()
+        val legacySong = prefs.getString("song_uri", null)?.takeIf(InputChecks::song)
         val record = if (hasOld) AlarmRecord(
             id = UUID.randomUUID().toString(), hour = prefs.getInt("hour", 7).coerceIn(0, 23), minute = prefs.getInt("minute", 0).coerceIn(0, 59),
-            enabled = prefs.getBoolean("enabled", false) && InputChecks.song(prefs.getString("song_uri", null)) &&
+            enabled = prefs.getBoolean("enabled", false) && legacySong != null &&
                 InputChecks.barcode(prefs.getString("barcode", null)),
-            songUri = prefs.getString("song_uri", null), songName = prefs.getString("song_name", null),
+            songUri = legacySong, songName = legacySong?.let { prefs.getString("song_name", null) },
             volumePercent = prefs.getInt("volume_percent", 80).coerceIn(1, 100)) else null
         val edit = prefs.edit().putString("alarms_v3", JSONArray().apply { record?.let { put(AlarmStore.encodeRecord(it)) } }.toString())
             .putBoolean("restore_v3", hasOld)

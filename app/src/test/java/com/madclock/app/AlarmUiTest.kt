@@ -1,7 +1,10 @@
 package com.madclock.app
 
+import android.app.Activity
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -49,7 +52,7 @@ class AlarmUiTest {
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
         val activity = controller.get()
         assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.emptyState).visibility)
-        assertNull(activity.findViewById<View>(R.id.saveAlarm))
+        assertEquals(0, activity.resources.getIdentifier("saveAlarm", "id", activity.packageName))
         assertNull(activity.findViewById<View>(R.id.selectSong))
         assertTrue(activity.findViewById<ImageButton>(R.id.addAlarm).isEnabled)
         activity.findViewById<Button>(R.id.addEmpty).performClick()
@@ -99,7 +102,11 @@ class AlarmUiTest {
         repeats.setSelection(1)
         editor.findViewById<TimePicker>(R.id.timePicker).apply { hour = 23; minute = 15 }
         editor.findViewById<SeekBar>(R.id.volume).progress = 1
-        editor.findViewById<Button>(R.id.saveAlarm).performClick()
+        assertEquals(23, store.find(one.id)!!.hour)
+        assertEquals(15, store.find(one.id)!!.minute)
+        assertEquals(1, store.find(one.id)!!.volumePercent)
+        assertFalse(editor.isFinishing)
+        editor.findViewById<ImageButton>(R.id.back).performClick()
         assertTrue(editor.isFinishing)
         val saved = store.find(one.id)!!
         assertEquals(23, saved.hour); assertEquals(15, saved.minute)
@@ -123,7 +130,47 @@ class AlarmUiTest {
         assertEquals(1, newEditor.findViewById<Spinner>(R.id.repeatMode).selectedItemPosition)
         assertEquals(96, newEditor.findViewById<SeekBar>(R.id.volume).progress)
         assertTrue(store.alarms.isEmpty())
+        newEditor.findViewById<Switch>(R.id.editorEnabled).isChecked = true
+        newEditor.onBackPressedDispatcher.onBackPressed()
+        val created = store.alarms.single()
+        assertTrue(created.enabled)
+        assertEquals(AlarmRepeat.ONCE, created.repeat)
+        assertEquals(9, created.hour)
+        assertNull(created.songUri)
+        assertEquals(1, shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.size)
         restored.pause().stop().destroy()
+    }
+
+    @Test fun openingAndLeavingUntouchedEditorDoesNotCreateAnAlarm() {
+        val controller = Robolectric.buildActivity(AlarmEditorActivity::class.java).setup()
+        val editor = controller.get()
+        assertEquals(editor.getString(R.string.default_song), editor.findViewById<TextView>(R.id.songValue).text)
+        editor.onBackPressedDispatcher.onBackPressed()
+        assertTrue(editor.isFinishing)
+        assertTrue(store.alarms.isEmpty())
+        assertTrue(shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.isEmpty())
+        controller.pause().stop().destroy()
+    }
+
+    @Test fun selectingCustomAndReturningToDefaultAutosavesWithoutRearming() {
+        val alarm = record(enabled = true).copy(songUri = null, songName = null)
+        assertTrue(AlarmActions.save(context, alarm))
+        val before = store.find(alarm.id)!!
+        val controller = Robolectric.buildActivity(AlarmEditorActivity::class.java,
+            Intent(context, AlarmEditorActivity::class.java).putExtra("alarm_id", alarm.id)).setup()
+        val editor = controller.get()
+        val uri = Uri.parse("content://songs/local-song")
+        editor.findViewById<Button>(R.id.selectSong).performClick()
+        val open = shadowOf(editor).nextStartedActivityForResult.intent
+        assertEquals(Intent.ACTION_OPEN_DOCUMENT, open.action)
+        shadowOf(editor).receiveResult(open, Activity.RESULT_OK, Intent().setData(uri))
+        assertEquals(uri.toString(), store.find(alarm.id)!!.songUri)
+        assertEquals("local-song", editor.findViewById<TextView>(R.id.songValue).text.toString())
+        editor.findViewById<Button>(R.id.defaultSong).performClick()
+        assertEquals(before, store.find(alarm.id))
+        assertEquals(editor.getString(R.string.default_song), editor.findViewById<TextView>(R.id.songValue).text.toString())
+        assertEquals(1, shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.size)
+        controller.pause().stop().destroy()
     }
     @Test fun editorDeletionRemovesOnlyOneRecord() {
         val one = record(0); val two = record(1)

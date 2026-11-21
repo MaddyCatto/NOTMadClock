@@ -1,6 +1,7 @@
 package com.madclock.audio
 
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -186,7 +187,7 @@ class AudioServiceTest {
         service.onStartCommand(command(C.STOP), 0, 2)
         assertEquals(2, audio.getStreamVolume(AudioManager.STREAM_ALARM))
     }
-    @Test fun helperManifestRequiresSignaturePermissionAndHasNoLauncher() {
+    @Test fun helperManifestProtectsCommandsAndLaunchesOnlyItsInformationScreen() {
         val permission = context.packageManager.getPermissionInfo(C.PERMISSION, 0)
         assertEquals(PermissionInfo.PROTECTION_SIGNATURE, permission.protectionLevel and PermissionInfo.PROTECTION_MASK_BASE)
         val service = context.packageManager.getServiceInfo(android.content.ComponentName(context, AudioService::class.java), 0)
@@ -196,19 +197,49 @@ class AudioServiceTest {
         val setup = context.packageManager.getActivityInfo(android.content.ComponentName(context, SetupActivity::class.java), 0)
         assertTrue(setup.flags and ActivityInfo.FLAG_EXCLUDE_FROM_RECENTS != 0)
         assertEquals(C.PERMISSION, setup.permission)
-        assertTrue(context.packageManager.queryIntentActivities(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName), 0).isEmpty())
+        val snapshot = context.packageManager.getReceiverInfo(ComponentName(context, SleepStatusReceiver::class.java), 0)
+        assertEquals(C.PERMISSION, snapshot.permission)
+        val launchers = context.packageManager.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setPackage(context.packageName), 0)
+        assertEquals(AudioInfoActivity::class.java.name, launchers.single().activityInfo.name)
+        assertEquals("MadClock Audio", launchers.single().loadLabel(context.packageManager).toString())
+        assertTrue(launchers.single().activityInfo.flags and ActivityInfo.FLAG_EXCLUDE_FROM_RECENTS != 0)
         @Suppress("DEPRECATION")
         val permissions = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
             .requestedPermissions.orEmpty()
         assertFalse(permissions.contains("android.permission.INTERNET"))
     }
+    @Test fun defaultMp3LoopsWithoutAnyUriGrantOrCachedImport() {
+        val service = service()
+        val bundled = Uri.parse("android.resource://${context.packageName}/${R.raw.default_alarm}")
+        ShadowMediaPlayer.addMediaInfo(DataSource.toDataSource(context, bundled), ShadowMediaPlayer.MediaInfo(120_000, 0))
+        val start = command(C.START).setData(null).putExtra(C.DEFAULT_ALARM, true)
+        assertEquals(Service.START_STICKY, service.onStartCommand(start, 0, 1))
+        idle()
+        assertTrue(player(service)!!.isPlaying)
+        assertTrue(player(service)!!.isLooping)
+        assertEquals(AudioSession("one", null, 80, store.active!!.originalVolume), store.active)
+        assertFalse(file("one").exists())
+        service.onStartCommand(command(C.STOP), 0, 2)
+        assertTrue(store.completed("one"))
+        assertNull(player(service))
+    }
+
+    @Test fun launcherIgnoresPlaybackExtrasAndDoesNotStartOrBindAnything() {
+        val launch = Intent(context, AudioInfoActivity::class.java).setAction(C.START).putExtra(C.SESSION, "one")
+        val info = Robolectric.buildActivity(AudioInfoActivity::class.java, launch).setup()
+        assertNull(store.active)
+        assertNull(shadowOf(RuntimeEnvironment.getApplication()).nextStartedService)
+        info.pause().stop().destroy()
+    }
+
     private fun registerFallback() = ShadowMediaPlayer.addMediaInfo(DataSource.toDataSource(context,
         Uri.parse("android.resource://${context.packageName}/${R.raw.fallback_alarm}")), ShadowMediaPlayer.MediaInfo(10_000, 0))
     @Test fun malformedCommandsNeverStartAPlayerOrCreateSessionState() {
         val service = service()
         val bad = listOf(command(C.START, "../path"), command(C.START, "x".repeat(81)),
             command(C.START).apply { removeExtra(C.SESSION) }, command("unknown-action"),
+            command(C.START).setData(null), command(C.START).putExtra(C.DEFAULT_ALARM, true),
             command(C.START).setData(Uri.parse("file:///data/private")),
             command(C.START).setData(Uri.parse("https://example.test/song")),
             command(C.START).setData(Uri.parse("content:///no-authority")),

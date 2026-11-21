@@ -11,8 +11,8 @@ android {
         applicationId = "com.madclock.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.1.0"
     }
 
     buildTypes {
@@ -37,6 +37,7 @@ android {
         unitTests.isIncludeAndroidResources = true
     }
     sourceSets["main"].java.srcDir("../shared/src/main/java")
+    sourceSets["main"].res.srcDir("../shared/src/main/res")
 }
 
 apply(from = rootProject.file("gradle/release-signing.gradle"))

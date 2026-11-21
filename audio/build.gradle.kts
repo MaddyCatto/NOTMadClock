@@ -9,8 +9,11 @@ android {
         applicationId = "com.madclock.audio"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.1.0"
+    }
+    buildTypes {
+        release { isCrunchPngs = false }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -18,6 +21,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     sourceSets["main"].java.srcDir("../shared/src/main/java")
+    sourceSets["main"].res.srcDir("../shared/src/main/res")
     testOptions { unitTests.isIncludeAndroidResources = true }
 }
 apply(from = rootProject.file("gradle/release-signing.gradle"))

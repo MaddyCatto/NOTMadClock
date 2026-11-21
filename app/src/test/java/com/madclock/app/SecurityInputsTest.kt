@@ -8,6 +8,8 @@ import android.content.pm.Signature
 import android.net.Uri
 import com.madclock.ipc.AudioContract as C
 import com.madclock.ipc.InputChecks
+import com.madclock.ipc.SleepSettings
+import com.madclock.ipc.SleepStatus
 import org.json.JSONArray
 import org.junit.Assert.*
 import org.junit.Before
@@ -77,8 +79,10 @@ class SecurityInputsTest {
     @Test fun helperWithWrongOrMissingSignatureReceivesNoCommandOrUriGrant() {
         val pm = shadowOf(context.packageManager)
         var grants = 0
+        var queries = 0
         val tracking = object : ContextWrapper(context) {
             override fun grantUriPermission(toPackage: String, uri: Uri, modeFlags: Int) { grants++ }
+            override fun sendBroadcast(intent: Intent, receiverPermission: String?) { queries++ }
         }
         val info = context.packageManager.getPackageInfo(C.PACKAGE, PackageManager.GET_SIGNATURES)
         for (signatures in listOf(arrayOf(Signature("5678")), emptyArray<Signature>())) {
@@ -86,6 +90,12 @@ class SecurityInputsTest {
             assertFalse(AudioBridge.trusted(context))
             assertFalse(AudioBridge.start(tracking, active()))
             assertFalse(AudioBridge.openSetup(context))
+            AudioBridge.sleepStatus(tracking) { assertNull(it) }
+            AudioBridge.toggleSleep(tracking, SleepStatus("ticket", SleepStatus.Phase.IDLE, null), SleepSettings()) { ok, state ->
+                assertFalse(ok)
+                assertNull(state)
+            }
+            assertEquals(0, queries)
             assertNull(shadowOf(RuntimeEnvironment.getApplication()).nextStartedService)
             assertNull(shadowOf(RuntimeEnvironment.getApplication()).nextStartedActivity)
             assertEquals(0, grants)
