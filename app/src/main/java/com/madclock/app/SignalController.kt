@@ -8,7 +8,8 @@ object SignalController {
     fun onAlarm(context: Context, alarmId: String, generation: String, now: Long = System.currentTimeMillis()) {
         val store = AlarmStore(context)
         val due = store.find(alarmId) ?: return
-        if (!due.enabled || due.generation != generation) return
+        // An old AlarmManager delivery can race FLAG_UPDATE_CURRENT on a reused PendingIntent.
+        if (!due.enabled || due.generation != generation || due.nextAtMs == null || due.nextAtMs > now) return
         val next = if (due.repeat == AlarmRepeat.DAILY)
             AlarmScheduler.prepared(due, AlarmScheduler.nextTime(due, now))
         else due.copy(enabled = false, nextAtMs = null, generation = null)

@@ -177,6 +177,18 @@ class AlarmSchedulesTest {
         fire(now)
         assertNull(store.activeAlarm); assertNull(nextService())
     }
+    @Test fun deliveryWithRefreshedExtrasCannotRingBeforeTheNewTime() {
+        val first = add()
+        assertTrue(AlarmActions.save(context, first.copy(hour = 20), first.nextAtMs!!))
+        val rescheduled = store.find(first.id)!!
+        SignalController.onAlarm(context, rescheduled.id, rescheduled.generation!!, first.nextAtMs!!)
+        assertNull(store.activeAlarm)
+        assertNull(nextService())
+        assertEquals(1, alarms().scheduledAlarms.size)
+        fire(rescheduled)
+        assertEquals(first.id, store.activeAlarm!!.alarmId)
+    }
+
     @Test fun editingAndDeletingSourceAlarmNeverChangesOrStopsActiveSong() {
         val original = add()
         fire(original); nextService()
