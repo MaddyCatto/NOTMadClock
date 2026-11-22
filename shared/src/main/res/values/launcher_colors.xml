@@ -1,4 +1,4 @@
 <resources>
-    <!-- Exact top-left background pixel of the supplied PNG. -->
-    <color name="launcher_background">#FEFDFD</color>
+    <!-- Purple sampled from below the monogram, used behind transparent corners. -->
+    <color name="launcher_background">#1C023D</color>
 </resources>

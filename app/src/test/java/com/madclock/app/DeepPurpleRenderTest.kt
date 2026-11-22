@@ -31,7 +31,7 @@ import org.robolectric.util.ReflectionHelpers
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class DeepPurpleRenderTest {
-    @Test fun launcherArtworkFitsSafeCircleAndIsNotCroppedByCommonMasks() {
+    @Test fun launcherMonogramFitsSafeCircleAndMasksShowPurpleToTheEdges() {
         val context = RuntimeEnvironment.getApplication()
         val template = context.getDrawable(R.mipmap.ic_launcher) as AdaptiveIconDrawable
         val previous = ReflectionHelpers.getStaticField<Path>(AdaptiveIconDrawable::class.java, "sMask")
@@ -58,11 +58,20 @@ class DeepPurpleRenderTest {
                 var artworkPixels = 0
                 for (y in 0 until size) for (x in 0 until size) {
                     val pixel = reference.getPixel(x, y)
-                    if (maxOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) > 90) {
+                    val rendered = output.getPixel(x, y)
+                    val dx = x + 0.5 - size / 2.0
+                    val dy = y + 0.5 - size / 2.0
+                    val safeRadius = size * 33.0 / 72
+                    val insideSafeCircle = dx * dx + dy * dy < safeRadius * safeRadius
+                    // Bright pixels belong to the pink-purple monogram, including both ears.
+                    if (Color.alpha(pixel) == 255 && Color.red(pixel) >= 145 && Color.blue(pixel) >= 200) {
                         artworkPixels++
-                        val dx = x - size / 2.0; val dy = y - size / 2.0
-                        assertTrue("Artwork outside 66/72 safe circle: $name", dx * dx + dy * dy < (size * 33.0 / 72) * (size * 33.0 / 72))
-                        assertEquals("Artwork clipped by $name", pixel, output.getPixel(x, y))
+                        assertTrue("Artwork outside 66/72 safe circle: $name", insideSafeCircle)
+                        assertEquals("Artwork clipped by $name", pixel, rendered)
+                    }
+                    if (!insideSafeCircle && Color.alpha(rendered) >= 240) {
+                        assertTrue("Non-purple pixels around the monogram: $name ($x, $y)",
+                            Color.blue(rendered) - Color.green(rendered) >= 25)
                     }
                 }
                 assertTrue("Missing artwork", artworkPixels > 10_000)

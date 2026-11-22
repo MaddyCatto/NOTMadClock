@@ -12,10 +12,10 @@ import java.security.MessageDigest
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28, 36])
 class LauncherIconTest {
-    @Test fun pngIsTheUnmodifiedUserAsset() {
+    @Test fun pngMatchesTheReviewedCropOfTheUserArtwork() {
         val bytes = RuntimeEnvironment.getApplication().resources.openRawResource(R.drawable.ic_launcher_artwork).use { it.readBytes() }
         val hash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
-        assertEquals("566901bf4fde3f1fd9d5928e5e1744f294ca9394336d4dccb28741256465d2df", hash)
+        assertEquals("c16072358e2732216fcc2e9207f9bb24da62d8ec5158a43b117c66a98e72862a", hash)
     }
     @Test fun mainUsesAdaptiveIconsForNormalAndRoundLaunchers() {
         val context = RuntimeEnvironment.getApplication()

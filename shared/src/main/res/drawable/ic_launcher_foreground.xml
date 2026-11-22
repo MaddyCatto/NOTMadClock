@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Original PNG, unchanged. Insets keep the complete square artwork inside the 66dp safe circle. -->
+<!-- Cropped purple artwork. Insets keep the monogram inside the 66dp safe circle. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:insetLeft="29%" android:insetTop="29%"
-    android:insetRight="29%" android:insetBottom="29%">
+    android:insetLeft="15%" android:insetTop="15%"
+    android:insetRight="15%" android:insetBottom="15%">
     <bitmap android:src="@drawable/ic_launcher_artwork"
         android:gravity="fill" android:filter="true" />
 </inset>

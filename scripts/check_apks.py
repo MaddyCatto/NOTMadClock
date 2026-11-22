@@ -16,7 +16,7 @@ SIGNER = str(SDK / "build-tools/36.0.0/apksigner")
 NS = "{http://schemas.android.com/apk/res/android}"
 CONTROL = "com.madclock.audio.permission.CONTROL_AUDIO"
 AUDIO_INFO = "com.madclock.audio.AudioInfoActivity"
-ICON_SHA256 = "566901bf4fde3f1fd9d5928e5e1744f294ca9394336d4dccb28741256465d2df"
+ICON_SHA256 = "c16072358e2732216fcc2e9207f9bb24da62d8ec5158a43b117c66a98e72862a"
 MEDIA_SHA256 = {
     "default_alarm.mp3": "f8e33bea1cb16e3c9c034ecf8bb8240074dedd0af0f052ce1b66d77f1388d8f8",
     "sleep_01_white_30s_seamless.wav": "ac8bb565e9d36e8f1aa4a6c7ba7d3ec2c5d71fa337ba862aba163343ee18f529",
