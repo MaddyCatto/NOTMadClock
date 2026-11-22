@@ -1,0 +1,4 @@
+<resources>
+    <!-- Purple sampled from below the monogram, used behind transparent corners. -->
+    <color name="launcher_background">#1C023D</color>
+</resources>

@@ -20,6 +20,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import com.madclock.ipc.InputChecks
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -40,6 +41,7 @@ class BarcodeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_barcode)
+        UiSupport.decorate(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         status = findViewById(R.id.scanStatus)
         val isRegister = intent.getStringExtra(EXTRA_MODE) == MODE_REGISTER
@@ -53,6 +55,7 @@ class BarcodeActivity : ComponentActivity() {
         }
     }
 
+    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
@@ -94,14 +97,22 @@ class BarcodeActivity : ComponentActivity() {
 
     private fun handleScan(value: String) {
         if (isFinishing || isDestroyed) return
-        if (intent.getStringExtra(EXTRA_MODE) == MODE_REGISTER) {
+        if (!InputChecks.barcode(value)) {
+            status.text = "Код пуст или слишком длинный. Попробуй другой."
+            locked.set(false)
+            return
+        }
+        if (intent.getStringExtra(EXTRA_MODE) == MODE_REGISTER && AlarmStore(this).activeAlarm == null) {
             AlertDialog.Builder(this)
                 .setTitle("Сохранить этот код?")
                 .setMessage(value)
                 .setPositiveButton("Сохранить") { _, _ ->
                     val store = AlarmStore(this)
+                    if (store.activeAlarm != null) {
+                        locked.set(false)
+                        return@setPositiveButton
+                    }
                     store.barcode = value
-                    if (store.enabled) AlarmScheduler.scheduleNext(this)
                     Toast.makeText(this, "Код сохранён", Toast.LENGTH_SHORT).show()
                     finish()
                 }
@@ -109,14 +120,15 @@ class BarcodeActivity : ComponentActivity() {
                 .setOnCancelListener { locked.set(false) }
                 .show()
         } else {
-            val expected = AlarmStore(this).barcode
-            if (!expected.isNullOrEmpty() && value == expected && AlarmService.isRinging) {
+            val active = AlarmStore(this).activeAlarm
+            if (active != null && value == active.barcode) {
                 status.text = "Код совпал. Будильник выключается."
-                startService(Intent(this, AlarmService::class.java).apply {
-                    action = AlarmService.ACTION_STOP
-                    putExtra(AlarmService.EXTRA_BARCODE, value)
-                })
-                handler.postDelayed({ finish() }, 350L)
+                if (SignalController.stopAfterScan(this, active.id, value)) {
+                    handler.postDelayed({ finish() }, 350L)
+                } else {
+                    status.text = "Не удалось завершить сохранённый сигнал. Повтори сканирование."
+                    locked.set(false)
+                }
             } else {
                 status.text = "Это не зарегистрированный штрихкод. Попробуй другой."
                 handler.postDelayed({ locked.set(false) }, 1400L)
@@ -130,6 +142,11 @@ class BarcodeActivity : ComponentActivity() {
         executor.shutdown()
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SignalController.onVisibleLaunch(this)
     }
 
     companion object {

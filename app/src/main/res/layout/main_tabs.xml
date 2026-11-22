@@ -1,0 +1,27 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="72dp"
+    android:background="@drawable/tab_bar_background"
+    android:orientation="horizontal">
+
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+        <Button
+            android:id="@+id/alarmTab"
+            style="@style/TabButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:drawableTop="@drawable/ic_tab_alarm"
+            android:text="@string/alarm_tab" />
+        <View android:id="@+id/alarmTabIndicator" style="@style/TabIndicator" />
+    </FrameLayout>
+    <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+        <Button
+            android:id="@+id/sleepTab"
+            style="@style/TabButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:drawableTop="@drawable/ic_waveform"
+            android:text="@string/sleep_tab" />
+        <View android:id="@+id/sleepTabIndicator" style="@style/TabIndicator" />
+    </FrameLayout>
+</LinearLayout>
